@@ -6,14 +6,15 @@ import { AppContext } from '../config'
 export const shortname = 'whats-alf'
 
 export const handler = async (ctx: AppContext, params: QueryParams) => {
+  //HN ranking draft
+  // select p.uri, r.score, TIMESTAMPDIFF(SECOND,NOW(),STR_TO_DATE(SUBSTRING(p.indexedAt from 1 for 19),'%Y-%m-%dT%TZ')) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri where cd.c='c203' order by ((r.score-1) / power((timestampdiff(second,now(),STR_TO_DATE(SUBSTRING(p.indexedAt from 1 for 19),'%Y-%m-%dT%TZ'))/60)+2,2)) desc limit 10;
   let builder = ctx.db
     .selectFrom('post')
     .selectAll()
     .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
+    .innerJoin('postrank', 'post.uri', 'postrank.uri')
     .where('did_to_community.c', '=', 'c203')
-    .where('indexedAt', '<', 'DATE_SUB(now(), 1 day)')
-    .orderBy('indexedAt', 'desc')
-    .orderBy('cid', 'desc')
+    .orderBy('score', 'desc')
     .limit(params.limit)
 
   if (params.cursor) {

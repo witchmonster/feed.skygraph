@@ -63,6 +63,9 @@ export abstract class FirehoseSubscriptionBase {
   async cleanUpTTL(ttl: string) {
     await this.db
       .deleteFrom('post')
+      //use
+      //STR_TO_DATE(SUBSTRING(indexedAt from 1 for 19),'%Y-%m-%dT%TZ')
+      //instead of indexedAt
       .where('indexedAt', '<', `DATE_SUB(now(), INTERVAL ${ttl})`)
       .execute()
   }

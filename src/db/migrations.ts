@@ -227,7 +227,7 @@ migrations['006'] = {
 //   BEGIN
 //   DELETE FROM
 //     post
-//   WHERE indexedAt < DATE_SUB(NOW() - 3 DAY)
+//   WHERE STR_TO_DATE(SUBSTRING(indexedAt from 1 for 19),'%Y-%m-%dT%TZ') < DATE_SUB(NOW(), INTERVAL 3 DAY)
 //   END`.execute(db);
 //   }
 // };
