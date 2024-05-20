@@ -51,7 +51,7 @@ export abstract class FirehoseSubscriptionBase {
         // cleanup older
         if (isCommit(evt) && evt.seq % 1000000 === 0) {
           console.log('cleaning up older posts');
-          await this.cleanUpTTL('4 day')
+          // await this.cleanUpTTL('4 day')
         }
       }
     } catch (err) {

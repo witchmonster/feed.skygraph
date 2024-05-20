@@ -1,8 +1,6 @@
 import { Kysely, Migration, MigrationProvider, MysqlDialect, sql } from 'kysely'
 import { Database } from './index'
 import communities from '../../input/communities.json'
-import fs from 'fs'
-import { CommunityToDid } from './schema'
 
 const migrations: Record<string, Migration> = {}
 
@@ -185,36 +183,38 @@ migrations['005'] = {
   async up(db: Kysely<MysqlDialect>) {
     await db.schema
       .createTable('likescore')
-      .addColumn('uri', 'varchar(255)', (col) => col.primaryKey())
+      .ifNotExists()
       .addColumn('author', 'varchar(255)', (col) => col.notNull())
       .addColumn('subject', 'varchar(255)', (col) => col.notNull())
+      .addPrimaryKeyConstraint('primary_key', ['author', 'subject'])
       .addColumn('score', 'integer', (col) => col.notNull())
-      .addColumn('indexedAt', 'varchar(255)', (col) => col.notNull())
       .execute();
-
-    try {
-      await db.schema
-        .createIndex('idx_likescore_to_author')
-        .on('likescore')
-        .column('author')
-        .execute();
-    } catch (err) {
-      console.log(`Skipping index idx_likescore_to_author, already exists`);
-    }
-
-    try {
-      await db.schema
-        .createIndex('idx_likescore_to_subject')
-        .on('likescore')
-        .column('subject')
-        .execute();
-    } catch (err) {
-      console.log(`Skipping index idx_likescore_to_subject, already exists`);
-    }
   },
   async down(db: Kysely<MysqlDialect>) {
     await db.schema.dropTable('likescore').execute()
-    await db.schema.dropIndex('idx_likescore_to_author').execute()
+  },
+}
+
+migrations['006'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .createTable('postrank')
+      .ifNotExists()
+      .addColumn('uri', 'varchar(255)', (col) => col.primaryKey())
+      .addColumn('score', 'integer', (col) => col.notNull())
+      .execute();
+    try {
+      await db.schema
+        .createIndex('idx_postrank_to_score')
+        .on('postrank')
+        .column('score')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_postrank_to_score, already exists`);
+    }
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.dropTable('postrank').execute()
   },
 }
 

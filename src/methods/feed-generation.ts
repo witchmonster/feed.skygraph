@@ -7,6 +7,21 @@ import { AtUri } from '@atproto/syntax'
 
 export default function (server: Server, ctx: AppContext) {
   server.app.bsky.feed.getFeedSkeleton(async ({ params, req }) => {
+    // const bearer = req.headers?.authorization;
+    // try {
+    //   if (bearer) {
+    //     const jwt: any = jose.decodeJwt(bearer.split(' ')[1]);
+    //     const did = jwt.iss;
+    //     if (did) {
+    //       const account = await db.selectFrom('Account').where('did', '=', did).selectAll().executeTakeFirst();
+    //       if (account) {
+    //         return await algoAllPlus(did, query.cursor);
+    //       }
+    //     }
+    //   }
+    // } catch (e) {
+    //   console.error('ALL+ FEED ERROR', bearer, e);
+    // }
     const feedUri = new AtUri(params.feed)
     const algo = algos[feedUri.rkey];
     if (

@@ -2,7 +2,8 @@ export type DatabaseSchema = {
   post: Post
   did_to_community: CommunityToDid
   community: Community
-  // likescore: LikeScore
+  likescore: LikeScore
+  postrank: PostRank
   sub_state: SubState
 }
 
@@ -16,10 +17,15 @@ export type Post = {
   indexedAt: string
 }
 
-// export type LikeScore = {
-//   author: string
-//   subject: string
-// }
+export type LikeScore = {
+  author: string
+  subject: string
+  score: number
+}
+export type PostRank = {
+  uri: string
+  score: number
+}
 
 export type CommunityToDid = {
   f?: string

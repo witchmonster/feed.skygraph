@@ -11,6 +11,7 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
     .selectAll()
     .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
     .where('did_to_community.c', '=', 'c203')
+    .where('indexedAt', '<', 'DATE_SUB(now(), 1 day)')
     .orderBy('indexedAt', 'desc')
     .orderBy('cid', 'desc')
     .limit(params.limit)

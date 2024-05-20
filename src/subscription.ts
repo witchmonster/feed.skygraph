@@ -42,8 +42,6 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
       })
 
-    // const likesToDelete = ops.likes.deletes.map((del) => del.uri)
-
     const likesToCreate = ops.likes.creates
       .filter((create) => {
         return true;
@@ -51,7 +49,18 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .map((create) => {
         return {
           author: create.author,
-          indexedAt: new Date().toISOString(),
+          subject: create.record.subject.uri.split('/')[2],
+          score: 1,
+        }
+      })
+    const rankToCreate = ops.likes.creates
+      .filter((create) => {
+        return true;
+      })
+      .map((create) => {
+        return {
+          uri: create.record.subject.uri,
+          score: 1,
         }
       })
 
@@ -68,18 +77,21 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .ignore()
         .execute()
     }
-    // if (likesToDelete.length > 0) {
-    //   await this.db
-    //     .updateTable('likescore')
-    //     .where('uri', 'in', postsToDelete)
-    //     .execute()
-    // }
-    // if (likesToCreate.length > 0) {
-    //   await this.db
-    //     .updateTable('likescore')
-    //     .set(likesToCreate)
-    //     .ignore()
-    //     .execute()
-    // }
+    if (likesToCreate.length > 0) {
+      await this.db
+        .insertInto('likescore')
+        .values(likesToCreate)
+        .onDuplicateKeyUpdate((eb) => ({
+          score: eb('score', '+', 1)
+        }))
+        .execute()
+      await this.db
+        .insertInto('postrank')
+        .values(rankToCreate)
+        .onDuplicateKeyUpdate((eb) => ({
+          score: eb('score', '+', 1)
+        }))
+        .execute()
+    }
   }
 }
