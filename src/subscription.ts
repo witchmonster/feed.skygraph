@@ -38,7 +38,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           author: create.author,
           replyParent: create.record?.reply?.parent.uri ?? null,
           replyRoot: create.record?.reply?.root.uri ?? null,
-          indexedAt: new Date().toISOString().substring(0, 19),
+          indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
         }
       })
 
