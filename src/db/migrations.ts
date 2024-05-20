@@ -135,15 +135,6 @@ migrations['003'] = {
   async up(db: Database) {
     communities.nodes.forEach(async (community, i) => {
       const communityCode = community.community;
-      // const getData = (): string[] => {
-      //   try {
-      //     console.log(`Reading file ${communityCode}.json, ${i} out of ${communities.nodes.length}`);
-      //     return JSON.parse(fs.readFileSync(`./input/community/${communityCode}.json`, 'utf-8')).nodes[0].dids;
-      //   } catch (err) {
-      //     console.log(err);
-      //     return [];
-      //   }
-      // }
       await db.insertInto('community')
         .values({
           community: communityCode,
@@ -152,23 +143,6 @@ migrations['003'] = {
         })
         .ignore()
         .execute();
-      // const getUpdate = (prefix: string, community: string) => {
-      //   const row = {};
-      //   row[prefix] = community;
-      //   return row;
-      // }
-      // await db.insertInto('did_to_community')
-      //   .values(
-      //     getData().map(did => {
-      //       let row: CommunityToDid = {
-      //         did: did
-      //       };
-      //       row[community.prefix] = community.community;
-      //       return row;
-      //     })
-      //   )
-      //   .onDuplicateKeyUpdate(getUpdate(community.prefix, community.community))
-      //   .execute();
     })
   }
 };
@@ -218,16 +192,15 @@ migrations['006'] = {
   },
 }
 
-// migrations['007'] = {
-//   async up(db: Database) {
-//     await sql`CREATE EVENT
-//     ClearPosts
-//   ON SCHEDULE EVERY 1 DAY
-//   DO
-//   BEGIN
-//   DELETE FROM
-//     post
-//   WHERE STR_TO_DATE(SUBSTRING(indexedAt from 1 for 19),'%Y-%m-%dT%TZ') < DATE_SUB(NOW(), INTERVAL 3 DAY)
-//   END`.execute(db);
-//   }
-// };
+migrations['007'] = {
+  async up(db: Database) {
+    await sql`CREATE EVENT
+    ClearPosts
+  ON SCHEDULE EVERY 1 DAY
+  DO
+  DELETE p, r FROM post p
+  JOIN postrank r on p.uri = r.uri
+  WHERE (r.score <= 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
+  OR p.indexedAt < DATE_SUB(NOW(), INTERVAL 3 DAY)`.execute(db);
+  }
+};

@@ -1,21 +1,22 @@
 import dotenv from 'dotenv'
-import Indexer from './indexer'
+import FeedGenerator from './feedGenerator'
 
 const run = async () => {
   dotenv.config()
   const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME) ?? 'example.com'
   const serviceDid =
     maybeStr(process.env.FEEDGEN_SERVICE_DID) ?? `did:web:${hostname}`
-  const indexer = Indexer.create({
-    subscriptionEndpoint:
-      maybeStr(process.env.FEEDGEN_SUBSCRIPTION_ENDPOINT) ??
-      'wss://bsky.network',
-    subscriptionReconnectDelay:
-      maybeInt(process.env.FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY) ?? 3000
+  const server = FeedGenerator.create({
+    port: maybeInt(process.env.FEEDGEN_PORT) ?? 3000,
+    listenhost: maybeStr(process.env.FEEDGEN_LISTENHOST) ?? 'localhost',
+    publisherDid:
+      maybeStr(process.env.FEEDGEN_PUBLISHER_DID) ?? 'did:example:alice',
+    hostname,
+    serviceDid,
   })
-  await indexer.start()
+  await server.start()
   console.log(
-    `🤖 running indexer`,
+    `🤖 running feed generator at http://${server.cfg.listenhost}:${server.cfg.port}`,
   )
 }
 

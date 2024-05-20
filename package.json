@@ -10,6 +10,8 @@
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
     "start": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/index.ts",
     "stop": "ts-node src/index.ts",
+    "feedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/feed.ts",
+    "feedDown": "ts-node src/feed.ts",
     "build": "tsc"
   },
   "dependencies": {

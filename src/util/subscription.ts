@@ -87,8 +87,7 @@ export abstract class FirehoseSubscriptionBase {
       .selectAll()
       .where('service', '=', this.service)
       .executeTakeFirst()
-    console.log(res ? res.cursor : 0);
-    return res ? { cursor: res.cursor } : { cursor: 0 }
+    return res ? { cursor: res.cursor } : {}
   }
 }
 

@@ -11,9 +11,12 @@ export type Config = {
   port: number
   listenhost: string
   hostname: string
-  // sqliteLocation: string
-  subscriptionEndpoint: string
   serviceDid: string
   publisherDid: string
+}
+
+export type IndexerConfig = {
+  // sqliteLocation: string
+  subscriptionEndpoint: string
   subscriptionReconnectDelay: number
 }

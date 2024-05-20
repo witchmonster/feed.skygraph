@@ -3,11 +3,20 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
 
 // max 15 chars
-export const shortname = 'whats-alf'
+export const shortname = 'test'
 
 export const handler = async (ctx: AppContext, params: QueryParams) => {
-  //HN ranking draft
-  // select p.uri, r.score, TIMESTAMPDIFF(SECOND,NOW(),STR_TO_DATE(SUBSTRING(p.indexedAt from 1 for 19),'%Y-%m-%dT%TZ')) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri where cd.c='c203' order by ((r.score-1) / power((timestampdiff(second,now(),STR_TO_DATE(SUBSTRING(p.indexedAt from 1 for 19),'%Y-%m-%dT%TZ'))/60)+2,2)) desc limit 10;
+  //ranking draft
+  // select @n := @n + 1 n, p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2)) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri, (SELECT @n := 0) as m where cd.c='c203' order by (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand() desc limit 200;
+
+  // select
+  // p.uri,
+  // r.score,
+  // TIMESTAMPDIFF(SECOND,NOW(),STR_TO_DATE(SUBSTRING(p.indexedAt from 1 for 19),'%Y-%m-%dT%TZ'))/3600 as hoursAgo
+  // from post as p
+  // join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri where cd.c='c203'
+  // order by r.score desc
+  // limit 1000;
   let builder = ctx.db
     .selectFrom('post')
     .selectAll()
