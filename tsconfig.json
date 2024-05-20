@@ -1,4 +1,3 @@
-
 {
   "compilerOptions": {
     "lib": [
@@ -9,12 +8,15 @@
     "target": "ES6",
     "esModuleInterop": true,
     "moduleResolution": "node",
+    "resolveJsonModule": true,
     "alwaysStrict": true,
     "allowUnreachableCode": false,
     "strictNullChecks": true,
     "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts"],
+  "include": [
+    "./src/**/*.ts"
+  ],
   "exclude": [
     "node_modules"
   ]

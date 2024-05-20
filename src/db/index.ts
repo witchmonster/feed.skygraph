@@ -1,13 +1,19 @@
-import SqliteDb from 'better-sqlite3'
-import { Kysely, Migrator, SqliteDialect } from 'kysely'
+import { createPool } from 'mysql2'
+import { Kysely, Migrator, MysqlDialect } from 'kysely'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'
 
-export const createDb = (location: string): Database => {
+export const createDb = (): Database => {
   return new Kysely<DatabaseSchema>({
-    dialect: new SqliteDialect({
-      database: new SqliteDb(location),
-    }),
+    dialect:
+      new MysqlDialect({
+        pool: async () => createPool({
+          database: 'skygraph',
+          host: 'localhost',
+          user: 'root',
+          password: 'skygraph'
+        })
+      })
   })
 }
 

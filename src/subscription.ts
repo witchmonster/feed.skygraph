@@ -3,6 +3,7 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
+import fetch from 'node-fetch';
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -13,22 +14,43 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     // Just for fun :)
     // Delete before actually using
     for (const post of ops.posts.creates) {
-      console.log(post.record.text)
+      if (post.record.text.includes('і'))
+        console.log(post.record.text)
+    }
+
+    for (const like of ops.likes.creates) {
+      // if (like.author.startsWith('did:plc:'))
+      // console.log(like.uri)
     }
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri)
     const postsToCreate = ops.posts.creates
       .filter((create) => {
-        // only alf-related posts
-        return create.record.text.toLowerCase().includes('alf')
+        // all posts
+        return true;
+        // return create.record.text.match('^[А-Яа-яёЁЇїІіЄєҐґ]+$');
       })
       .map((create) => {
-        // map alf-related posts to a db row
+        // map posts to db row
         return {
           uri: create.uri,
           cid: create.cid,
+          author: create.author,
           replyParent: create.record?.reply?.parent.uri ?? null,
           replyRoot: create.record?.reply?.root.uri ?? null,
+          indexedAt: new Date().toISOString(),
+        }
+      })
+
+    // const likesToDelete = ops.likes.deletes.map((del) => del.uri)
+
+    const likesToCreate = ops.likes.creates
+      .filter((create) => {
+        return true;
+      })
+      .map((create) => {
+        return {
+          author: create.author,
           indexedAt: new Date().toISOString(),
         }
       })
@@ -43,8 +65,21 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       await this.db
         .insertInto('post')
         .values(postsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
+    // if (likesToDelete.length > 0) {
+    //   await this.db
+    //     .updateTable('likescore')
+    //     .where('uri', 'in', postsToDelete)
+    //     .execute()
+    // }
+    // if (likesToCreate.length > 0) {
+    //   await this.db
+    //     .updateTable('likescore')
+    //     .set(likesToCreate)
+    //     .ignore()
+    //     .execute()
+    // }
   }
 }

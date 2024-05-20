@@ -9,6 +9,8 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
   let builder = ctx.db
     .selectFrom('post')
     .selectAll()
+    .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
+    .where('did_to_community.c', '=', 'c203')
     .orderBy('indexedAt', 'desc')
     .orderBy('cid', 'desc')
     .limit(params.limit)
@@ -20,11 +22,13 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
     }
     const timeStr = new Date(parseInt(indexedAt, 10)).toISOString()
     builder = builder
-      .where('post.indexedAt', '<', timeStr)
-      .orWhere((qb) => qb.where('post.indexedAt', '=', timeStr))
+      .where((eb) => eb.or([
+        eb('post.indexedAt', '<', timeStr),
+        eb('post.indexedAt', '=', timeStr)
+      ]))
       .where('post.cid', '<', cid)
   }
-  const res = await builder.execute()
+  const res = await builder.execute();
 
   const feed = res.map((row) => ({
     post: row.uri,

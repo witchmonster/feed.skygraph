@@ -45,8 +45,13 @@ export abstract class FirehoseSubscriptionBase {
           console.error('repo subscription could not handle message', err)
         }
         // update stored cursor every 20 events or so
-        if (isCommit(evt) && evt.seq % 20 === 0) {
+        if (isCommit(evt) && evt.seq % 2000 === 0) {
           await this.updateCursor(evt.seq)
+        }
+        // cleanup older
+        if (isCommit(evt) && evt.seq % 1000000 === 0) {
+          console.log('cleaning up older posts');
+          await this.cleanUpTTL('4 day')
         }
       }
     } catch (err) {
@@ -55,21 +60,32 @@ export abstract class FirehoseSubscriptionBase {
     }
   }
 
-  async updateCursor(cursor: number) {
+  async cleanUpTTL(ttl: string) {
     await this.db
-      .updateTable('sub_state')
-      .set({ cursor })
-      .where('service', '=', this.service)
+      .deleteFrom('post')
+      .where('indexedAt', '<', `DATE_SUB(now(), INTERVAL ${ttl})`)
+      .execute()
+  }
+
+  async updateCursor(cursor: number) {
+    // console.log('updating cursor')
+    console.log(cursor);
+    await this.db
+      .insertInto('sub_state')
+      .values({ cursor, service: this.service })
+      .onDuplicateKeyUpdate({ cursor })
       .execute()
   }
 
   async getCursor(): Promise<{ cursor?: number }> {
+    console.log('getting cursor')
     const res = await this.db
       .selectFrom('sub_state')
       .selectAll()
       .where('service', '=', this.service)
       .executeTakeFirst()
-    return res ? { cursor: res.cursor } : {}
+    console.log(res ? res.cursor : 0);
+    return res ? { cursor: res.cursor } : { cursor: 0 }
   }
 }
 

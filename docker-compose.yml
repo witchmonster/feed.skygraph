@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=skygraph
+      - MYSQL_DATABASE=skygraph
+    volumes:
+      - ${MYSQL_LOCATION}:/var/lib/mysql
+      - ${MYSQL_LOCATION}/mysql-files:/var/lib/mysql-files/

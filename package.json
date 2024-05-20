@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
-    "start": "ts-node src/index.ts",
+    "start": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/index.ts",
+    "stop": "ts-node src/index.ts",
     "build": "tsc"
   },
   "dependencies": {
@@ -18,11 +19,14 @@
     "@atproto/repo": "^0.3.2",
     "@atproto/syntax": "^0.1.2",
     "@atproto/xrpc-server": "^0.3.2",
+    "@types/node-fetch": "^2.6.11",
     "better-sqlite3": "^8.3.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "kysely": "^0.22.0",
-    "multiformats": "^9.9.0"
+    "kysely": "^0.27.2",
+    "multiformats": "^9.9.0",
+    "mysql2": "^3.9.7",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.4",
