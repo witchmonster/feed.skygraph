@@ -218,4 +218,16 @@ migrations['006'] = {
   },
 }
 
-
+// migrations['007'] = {
+//   async up(db: Database) {
+//     await sql`CREATE EVENT
+//     ClearPosts
+//   ON SCHEDULE EVERY 1 DAY
+//   DO
+//   BEGIN
+//   DELETE FROM
+//     post
+//   WHERE indexedAt < DATE_SUB(NOW() - 3 DAY)
+//   END`.execute(db);
+//   }
+// };
