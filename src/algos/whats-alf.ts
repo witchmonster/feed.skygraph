@@ -7,7 +7,7 @@ export const shortname = 'test'
 
 export const handler = async (ctx: AppContext, params: QueryParams) => {
   //ranking draft
-  // select @n := @n + 1 n, p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2)) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri, (SELECT @n := 0) as m where cd.s='s574' order by (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand(42) desc limit 200;
+  // select p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, ((r.score-1) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand(42) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri where cd.s='s574' order by hn desc limit 20;
 
   // select
   // p.uri,
