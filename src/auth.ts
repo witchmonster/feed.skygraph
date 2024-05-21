@@ -7,8 +7,8 @@ export const validateAuth = async (
   serviceDid: string,
   didResolver: DidResolver,
 ): Promise<string> => {
-  const { authorization = '' } = req.headers
-  if (!authorization.startsWith('Bearer ')) {
+  const authorization = req.headers?.authorization
+  if (!authorization || !authorization.startsWith('Bearer ')) {
     throw new AuthRequiredError()
   }
   const jwt = authorization.replace('Bearer ', '').trim()
