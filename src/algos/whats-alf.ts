@@ -7,7 +7,7 @@ export const shortname = 'test'
 
 export const handler = async (ctx: AppContext, params: QueryParams) => {
   //ranking draft
-  // select @n := @n + 1 n, p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2)) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri, (SELECT @n := 0) as m where cd.c='c203' order by (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand() desc limit 200;
+  // select @n := @n + 1 n, p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2)) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri, (SELECT @n := 0) as m where cd.s='s574' order by (power((r.score-1),3) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand(42) desc limit 200;
 
   // select
   // p.uri,
@@ -22,7 +22,7 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
     .selectAll()
     .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
     .innerJoin('postrank', 'post.uri', 'postrank.uri')
-    .where('did_to_community.c', '=', 'c203')
+    .where('did_to_community.s', '=', 's574')
     .orderBy('score', 'desc')
     .limit(params.limit)
 
