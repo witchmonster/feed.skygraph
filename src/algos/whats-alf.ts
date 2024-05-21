@@ -46,11 +46,11 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const whereClause: any = `did_to_community.${perfectCommunity.prefix}`;
 
   let seed: number;
-  let existingCid;
+  let existingRank;
   if (params.cursor) {
-    const [passedSeed, cid] = params.cursor.split('::')
-    existingCid = cid;
-    if (!passedSeed || !cid) {
+    const [passedSeed, rank] = params.cursor.split('::')
+    existingRank = rank;
+    if (!passedSeed || !rank) {
       throw new InvalidRequestError('malformed cursor')
     }
     seed = +passedSeed;
@@ -58,39 +58,57 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     seed = new Date().getUTCMilliseconds();
   }
 
-  let builder = ctx.db
-    .selectFrom('post')
-    .selectAll()
-    .select(({ fn, val, ref }) => [
-      //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
-      //top posts are somewhat immune and, so adding extra protection from that:
-      // if the post is popular (>50 likes) there's 70% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
-      sql<string>`((postrank.score-1)*(case when postrank.score > 50 and rand(${seed}) > 0.6 then 1 else 10/(postrank.score-1) end)*rand(${seed})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+  console.log(`${seed}::${existingRank}`);
+
+  let innerSelect = ctx.db
+    .selectFrom([
+      ctx.db.selectFrom('post')
+        .select(({ fn, val, ref }) => [
+          //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
+          //top posts are somewhat immune and, so adding extra protection from that:
+          // if the post is popular (>50 likes) there's 70% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
+          'post.uri',
+          sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,3))`.as('rank')
+          // sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))*(case when score > 50 and rand(${seed}) > 0.6 then 1 else 10/(score-1) end)*rand(${seed}))`.as('rank')
+        ])
+        .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
+        .innerJoin('postrank', 'post.uri', 'postrank.uri')
+        .select(['postrank.score'])
+        .where(whereClause, '=', perfectCommunity.community)
+        // .where('post.replyParent', 'is', null)
+        .orderBy('rank', 'desc')
+        .as('a')
     ])
-    .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
-    .innerJoin('postrank', 'post.uri', 'postrank.uri')
-    .where(whereClause, '=', perfectCommunity.community)
-    // .where('post.replyParent', 'is', null)
-    .orderBy('rank', 'desc')
+    .selectAll()
     .limit(params.limit);
+
+  if (existingRank) {
+    innerSelect = innerSelect
+      .where('rank', '<', existingRank)
+  }
+
+  let builder =
+    ctx.db
+      .selectFrom([
+        innerSelect.as('r')
+      ])
+      .selectAll()
+      .orderBy(sql`rand(${seed})`, 'desc')
 
   console.log(builder.compile().sql);
 
-  if (existingCid) {
-    builder = builder
-      .where('post.cid', '<', existingCid)
-  }
-
   const res = await builder.execute();
+
+  console.log(`${res.length}`);
 
   const feed = res.map((row) => ({
     post: row.uri,
   }))
 
   let cursor: string | undefined
-  const first = res.at(0)
-  if (first) {
-    cursor = `${seed}::${first.cid}`
+  const last = res.at(-1)
+  if (last) {
+    cursor = `${seed}::${last.rank}`
   }
 
   return {
