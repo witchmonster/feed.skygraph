@@ -98,21 +98,21 @@ migrations['001'] = {
     }
     try {
       await db.schema
-        .createIndex('idx_nebulas_to_did')
-        .on('did_to_community')
-        .column('o')
-        .execute();
-    } catch (err) {
-      console.log(`Skipping index idx_nebulas_to_did, already exists`);
-    }
-    try {
-      await db.schema
         .createIndex('idx_constellations_to_did')
         .on('did_to_community')
         .column('e')
         .execute();
     } catch (err) {
       console.log(`Skipping index idx_constellations_to_did, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_nebulas_to_did')
+        .on('did_to_community')
+        .column('o')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_nebulas_to_did, already exists`);
     }
   },
   async down(db: Kysely<MysqlDialect>) {
@@ -255,21 +255,21 @@ migrations['008'] = {
     }
     try {
       await db.schema
-        .createIndex('idx_nebulas_to_post')
-        .on('post')
-        .column('o')
-        .execute();
-    } catch (err) {
-      console.log(`Skipping index idx_nebulas_to_post, already exists`);
-    }
-    try {
-      await db.schema
         .createIndex('idx_constellations_to_post')
         .on('post')
         .column('e')
         .execute();
     } catch (err) {
       console.log(`Skipping index idx_constellations_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_nebulas_to_post')
+        .on('post')
+        .column('o')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_nebulas_to_post, already exists`);
     }
   }
 };
