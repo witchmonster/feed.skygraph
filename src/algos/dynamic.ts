@@ -96,7 +96,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
     console.log(`${consistentRes.length}`);
 
-    // shuffleArray(consistentRes);
+    shuffleArray(consistentRes);
 
     const feed = consistentRes.map((row) => ({
         post: row.uri,
