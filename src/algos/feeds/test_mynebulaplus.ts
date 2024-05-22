@@ -17,7 +17,7 @@ function shuffleArray(array) {
 }
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
-    console.log(userDid);
+    console.log(`User ${userDid} from test_mynebulaplus feed`);
 
     let seed: number;
     let existingCid;
@@ -48,7 +48,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         .orderBy('rank', 'desc')
         .limit(params.limit);
 
-    const { whereClause, userCommunity: community, topConstellationsByLikes } = await getUserCommunity(ctx, userDid, { withTopLiked: true });
+    const { whereClause, userCommunity: community, topConstellationsByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true });
 
     if (topConstellationsByLikes && topConstellationsByLikes.length > 0) {
         builder = builder

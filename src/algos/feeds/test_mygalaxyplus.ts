@@ -17,7 +17,7 @@ function shuffleArray(array) {
 }
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
-  console.log(userDid);
+  console.log(`User ${userDid} from test_mygalaxyplus feed`);
 
   let seed: number;
   let existingRank;
