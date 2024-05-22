@@ -4,14 +4,16 @@ import {
   OutputSchema as AlgoOutput,
 } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import * as whatsAlf from './feeds/consistent'
-import * as skygraph from './feeds/mygalaxyplus'
+import * as mygalaxyplus from './feeds/mygalaxyplus'
+import * as mynebulaplus from './feeds/mynebulaplus'
 import * as dynamic from './feeds/dynamic'
 
 type AlgoHandler = (ctx: AppContext, params: QueryParams, userDid?: string) => Promise<AlgoOutput>
 
 const algos: Record<string, AlgoHandler> = {
+  [mygalaxyplus.shortname]: mygalaxyplus.handler,
+  [mynebulaplus.shortname]: mynebulaplus.handler,
   [whatsAlf.shortname]: whatsAlf.handler,
-  [skygraph.shortname]: skygraph.handler,
   [dynamic.shortname]: dynamic.handler,
 }
 
