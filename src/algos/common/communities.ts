@@ -34,27 +34,28 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config: { with
 
         console.log(perfectCommunity);
     }
-    const whereClause: any = `post.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
+    const whereClausePost: any = `post.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
+    const whereClauseDidToCommunity: any = `did_to_community.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
     const community = perfectCommunity ? perfectCommunity.community : 's574';
 
     if (config.withTopLiked) {
-        const topLikedAuthors = ctx.db.selectFrom('likescore')
+        const topLikedConstellationsQuery = ctx.db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select(['did_to_community.o', 'likescore.subject'])
             .where('likescore.author', '=', userDid)
-            .where(whereClause, '<>', community)
+            .where(whereClauseDidToCommunity, '<>', community)
             .limit(5);
 
-        console.log(topLikedAuthors.compile().sql);
+        console.log(topLikedConstellationsQuery.compile().sql);
 
-        const topLikedConstellations = await topLikedAuthors.execute();
+        const topLikedConstellations = await topLikedConstellationsQuery.execute();
 
         const topConstellationsByLikes: string[] = topLikedConstellations.filter(n => n.o !== undefined).map(n => n.o) as any;
 
-        return { whereClause, userCommunity: community, topConstellationsByLikes };
+        return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes };
     }
 
-    return { whereClause, userCommunity: community };
+    return { whereClause: whereClausePost, userCommunity: community };
 }
 
 // let exploreNebulae;
