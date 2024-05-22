@@ -52,6 +52,8 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config: { with
 
         const topConstellationsByLikes: string[] = topLikedConstellations.filter(n => n.o !== undefined).map(n => n.o) as any;
 
+        console.log("top constellations: " + topConstellationsByLikes)
+
         return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes };
     }
 
