@@ -3,6 +3,7 @@ import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
 import { sql } from 'kysely'
 import { getUserCommunity } from '../common/communities'
+import { rateLimit } from '../common/util'
 
 // max 15 chars
 export const shortname = 'test'
@@ -41,7 +42,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
       ctx.db.selectFrom('post')
         .select(({ fn, val, ref }) => [
           //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-          'post.uri',
+          'post.uri', 'post.author',
           sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,3))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
@@ -69,11 +70,12 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const consistentRes = await builder.execute();
 
   console.log(`${consistentRes.length}`);
-
-  //feed feels less boring this way
   shuffleArray(consistentRes);
 
-  const feed = consistentRes.map((row) => ({
+  const rateLimitedRes = rateLimit(consistentRes, 3);
+  console.log(`rate limited to: ${rateLimitedRes.length}`);
+
+  const feed = rateLimitedRes.map((row) => ({
     post: row.uri,
   }))
 
