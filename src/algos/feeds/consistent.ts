@@ -2,6 +2,7 @@ import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
 import { sql } from 'kysely'
+import { getUserCommunity } from '../common/communities'
 
 // max 15 chars
 export const shortname = 'test'
@@ -18,30 +19,6 @@ function shuffleArray(array) {
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
   console.log(userDid);
 
-  const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647'}`.execute(ctx.db);
-  const communityCodes: string[] = [
-    (communitiesRes.rows[0] as any)?.f,
-    (communitiesRes.rows[0] as any)?.s,
-    (communitiesRes.rows[0] as any)?.c,
-    (communitiesRes.rows[0] as any)?.g,
-    (communitiesRes.rows[0] as any)?.e,
-    (communitiesRes.rows[0] as any)?.o];
-
-
-  const communities = await ctx.db.selectFrom('community')
-    .selectAll()
-    .where('community', 'in', communityCodes)
-    .orderBy('community asc')
-    .execute();
-
-  console.log(communities);
-
-  const perfectCommunity = (communities && communities.filter(community => community.size > 3000 && community.size < 50000)[0])
-    ?? (communitiesRes.rows[0] as any)?.s;
-
-  console.log(perfectCommunity);
-  const whereClause: any = `did_to_community.${perfectCommunity.prefix}`;
-
   let seed: number;
   let existingRank;
   if (params.cursor) {
@@ -57,6 +34,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
   console.log(`${seed}::${existingRank}`);
 
+  const { whereClause, userCommunity } = await getUserCommunity(ctx, userDid, { withTopLiked: false });
+
   let innerSelect = ctx.db
     .selectFrom([
       ctx.db.selectFrom('post')
@@ -65,10 +44,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
           'post.uri',
           sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,3))`.as('rank')
         ])
-        .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .select(['postrank.score'])
-        .where(whereClause, '=', perfectCommunity.community)
+        .where(whereClause, '=', userCommunity)
         // .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc')
         .as('a')
