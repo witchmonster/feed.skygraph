@@ -6,6 +6,15 @@ import { sql } from 'kysely'
 // max 15 chars
 export const shortname = 'test'
 
+function shuffleArray(array) {
+  for (var i = array.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+}
+
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
   //ranking draft
   // select p.uri, r.score, TIMESTAMPDIFF(SECOND,p.indexedAt,now())/60 as minutesAgo, ((r.score-1) / power(timestampdiff(second,p.indexedAt,now())/60,2))*rand(42) as hn from post as p join did_to_community as cd on p.author = cd.did join postrank as r on p.uri = r.uri where cd.s='s574' order by hn desc limit 20;
@@ -93,20 +102,21 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         innerSelect.as('r')
       ])
       .selectAll()
-      .orderBy(sql`rand(${seed})`, 'desc')
 
-  console.log(builder.compile().sql);
+  // console.log(builder.compile().sql);
 
-  const res = await builder.execute();
+  const consistentRes = await builder.execute();
 
-  console.log(`${res.length}`);
+  console.log(`${consistentRes.length}`);
 
-  const feed = res.map((row) => ({
+  shuffleArray(consistentRes);
+
+  const feed = consistentRes.map((row) => ({
     post: row.uri,
   }))
 
   let cursor: string | undefined
-  const last = res.at(-1)
+  const last = consistentRes.at(-1);
   if (last) {
     cursor = `${seed}::${last.rank}`
   }
