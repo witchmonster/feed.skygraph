@@ -25,7 +25,7 @@ export default function (server: Server, ctx: AppContext) {
     const feedUri = new AtUri(params.feed)
     const algo = algos[feedUri.rkey];
     if (
-      feedUri.hostname !== ctx.cfg.publisherDid ||
+      (feedUri.hostname !== 'did:plc:v7iswx544swf2usdcp32p647' && feedUri.hostname !== 'did:plc:o5aohupqzlzcmddhgatk4ty7') ||
       feedUri.collection !== 'app.bsky.feed.generator' ||
       !algo
     ) {
