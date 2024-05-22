@@ -194,7 +194,7 @@ migrations['006'] = {
 
 migrations['007'] = {
   async up(db: Database) {
-    await sql`CREATE EVENT
+    await sql`CREATE EVENT if not exists
     ClearPosts
   ON SCHEDULE EVERY 1 DAY
   DO

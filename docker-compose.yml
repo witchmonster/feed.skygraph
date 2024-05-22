@@ -18,6 +18,7 @@ services:
       - ./certbot/conf/:/etc/letsencrypt/:rw
   mysql:
     image: mysql:latest
+    restart: always
     container_name: mysql
     ports:
       - "3306:3306"

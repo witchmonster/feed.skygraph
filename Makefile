@@ -2,4 +2,4 @@
 
 mysql:
 	@docker-compose up -d
-	@mysql -h localhost -P 3306 --protocol=tcp -u root -p skygraph
+	@docker exec -it mysql mysql -uroot -pskygraph skygraph
