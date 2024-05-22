@@ -5,7 +5,7 @@ import { sql } from 'kysely'
 import { getUserCommunity } from '../common/communities'
 
 // max 15 chars
-export const shortname = 'skygraph'
+export const shortname = 'nebula_plus'
 
 function shuffleArray(array) {
     for (var i = array.length - 1; i > 0; i--) {

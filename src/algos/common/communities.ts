@@ -7,7 +7,12 @@ interface CommunityResponse {
     topConstellationsByLikes?: string[]
 }
 
-const getUserCommunity = async (ctx: AppContext, userDid: string, config: { withTopLiked: boolean }): Promise<CommunityResponse> => {
+interface CommunityRequestConfig {
+    communityTypes?: string[]
+    withTopLiked?: boolean
+}
+
+const getUserCommunity = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647'}`.execute(ctx.db);
 
     let perfectCommunity;
@@ -38,7 +43,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config: { with
     const whereClauseDidToCommunity: any = `did_to_community.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
     const community = perfectCommunity ? perfectCommunity.community : 's574';
 
-    if (config.withTopLiked) {
+    if (config?.withTopLiked) {
         const topLikedConstellationsQuery = ctx.db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select(['did_to_community.o', 'likescore.subject'])

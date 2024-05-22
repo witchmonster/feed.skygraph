@@ -4,7 +4,7 @@ import {
   OutputSchema as AlgoOutput,
 } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import * as whatsAlf from './feeds/consistent'
-import * as skygraph from './feeds/skygraph'
+import * as skygraph from './feeds/mynebulaplus'
 import * as dynamic from './feeds/dynamic'
 
 type AlgoHandler = (ctx: AppContext, params: QueryParams, userDid?: string) => Promise<AlgoOutput>
