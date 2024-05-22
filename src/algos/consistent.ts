@@ -61,12 +61,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     .selectFrom([
       ctx.db.selectFrom('post')
         .select(({ fn, val, ref }) => [
-          //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
-          //top posts are somewhat immune and, so adding extra protection from that:
-          // if the post is popular (>50 likes) there's 70% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
+          //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
           'post.uri',
           sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,3))`.as('rank')
-          // sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))*(case when score > 50 and rand(${seed}) > 0.6 then 1 else 10/(score-1) end)*rand(${seed}))`.as('rank')
         ])
         .innerJoin('did_to_community', 'post.author', 'did_to_community.did')
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
@@ -91,12 +88,11 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
       ])
       .selectAll()
 
-  // console.log(builder.compile().sql);
-
   const consistentRes = await builder.execute();
 
   console.log(`${consistentRes.length}`);
 
+  //feed feels less boring this way
   shuffleArray(consistentRes);
 
   const feed = consistentRes.map((row) => ({

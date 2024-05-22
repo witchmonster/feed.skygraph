@@ -56,8 +56,8 @@ migrations['001'] = {
       .addColumn('s', 'varchar(255)')
       .addColumn('c', 'varchar(255)')
       .addColumn('g', 'varchar(255)')
-      .addColumn('o', 'varchar(255)')
       .addColumn('e', 'varchar(255)')
+      .addColumn('o', 'varchar(255)')
       .execute();
 
     try {
@@ -202,5 +202,74 @@ migrations['007'] = {
   JOIN postrank r on p.uri = r.uri
   WHERE (r.score <= 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
   OR p.indexedAt < DATE_SUB(NOW(), INTERVAL 3 DAY)`.execute(db);
+  }
+};
+
+migrations['008'] = {
+  async up(db: Database) {
+    await db.schema
+      .alterTable('post')
+      .addColumn('f', 'varchar(255)')
+      .addColumn('s', 'varchar(255)')
+      .addColumn('c', 'varchar(255)')
+      .addColumn('g', 'varchar(255)')
+      .addColumn('e', 'varchar(255)')
+      .addColumn('o', 'varchar(255)')
+      .execute();
+
+    try {
+      await db.schema
+        .createIndex('idx_gigaclusters_to_post')
+        .on('post')
+        .column('f')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_gigaclusters_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_superclusters_to_post')
+        .on('post')
+        .column('s')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_superclusters_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_clusters_to_post')
+        .on('post')
+        .column('c')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_clusters_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_galaxies_to_post')
+        .on('post')
+        .column('g')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_galaxies_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_nebulas_to_post')
+        .on('post')
+        .column('o')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_nebulas_to_post, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_constellations_to_post')
+        .on('post')
+        .column('e')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_constellations_to_post, already exists`);
+    }
   }
 };

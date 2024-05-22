@@ -15,6 +15,12 @@ export type Post = {
   author: string
   community: string | null
   indexedAt: string
+  f?: string
+  s?: string
+  c?: string
+  g?: string
+  e?: string
+  o?: string
 }
 
 export type LikeScore = {
@@ -32,8 +38,8 @@ export type CommunityToDid = {
   s?: string
   c?: string
   g?: string
-  o?: string
   e?: string
+  o?: string
   did: string
 }
 

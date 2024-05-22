@@ -3,7 +3,7 @@ import {
   QueryParams,
   OutputSchema as AlgoOutput,
 } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
-import * as whatsAlf from './whats-alf'
+import * as whatsAlf from './consistent'
 import * as skygraph from './skygraph'
 import * as dynamic from './dynamic'
 

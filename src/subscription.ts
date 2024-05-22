@@ -71,11 +71,41 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
     if (postsToCreate.length > 0) {
-      await this.db
-        .insertInto('post')
-        .values(postsToCreate)
-        .ignore()
-        .execute()
+      const communities = await this.db
+        .selectFrom('did_to_community')
+        .selectAll()
+        .where('did_to_community.did', 'in', postsToCreate.map(post => post.author))
+        .execute();
+
+      const communityObj: {
+        [did: string]: {
+          did?: string,
+          f: string,
+          s: string,
+          c: string,
+          g: string,
+          e: string,
+          o: string
+        }
+      } = communities.reduce((a, v) => ({ ...a, [v.did]: v }), {})
+      if (communities?.length === postsToCreate.length) {
+        const values = postsToCreate.map(post => {
+          let postWithCommunitiesreturn = { ...post, ...communityObj[post.author] };
+          delete postWithCommunitiesreturn.did;
+          return postWithCommunitiesreturn;
+        });
+        await this.db
+          .insertInto('post')
+          .values(values)
+          .ignore()
+          .execute()
+      } else {
+        await this.db
+          .insertInto('post')
+          .values(postsToCreate)
+          .ignore()
+          .execute()
+      }
     }
     if (likesToCreate.length > 0) {
       await this.db
