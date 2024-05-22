@@ -1,8 +1,8 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
-import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
-import { AppContext } from '../config'
+import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
+import { AppContext } from '../../config'
 import { sql } from 'kysely'
-import { getUserCommunity } from './common/communities'
+import { getUserCommunity } from '../common/communities'
 
 // max 15 chars
 export const shortname = 'dynamic'

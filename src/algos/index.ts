@@ -3,9 +3,9 @@ import {
   QueryParams,
   OutputSchema as AlgoOutput,
 } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
-import * as whatsAlf from './consistent'
-import * as skygraph from './skygraph'
-import * as dynamic from './dynamic'
+import * as whatsAlf from './feeds/consistent'
+import * as skygraph from './feeds/skygraph'
+import * as dynamic from './feeds/dynamic'
 
 type AlgoHandler = (ctx: AppContext, params: QueryParams, userDid?: string) => Promise<AlgoOutput>
 
