@@ -4,6 +4,7 @@ import { AppContext } from '../config'
 import algos from '../algos'
 import { validateAuth } from '../auth'
 import { AtUri } from '@atproto/syntax'
+import { AtpAgent } from '@atproto/api'
 
 export default function (server: Server, ctx: AppContext) {
   server.app.bsky.feed.getFeedSkeleton(async ({ params, req }) => {
@@ -53,7 +54,20 @@ export default function (server: Server, ctx: AppContext) {
       )
     }
 
-    const body = await algo(ctx, params, requesterDid)
+    let follows;
+    if (requesterDid) {
+      const agent = new AtpAgent({ service: 'https://bsky.social' })
+      const handle = process.env.BSKY_USER;
+      const password = process.env.BSKY_PASSWORD;
+
+      if (handle && password) {
+        await agent.login({ identifier: handle, password })
+        const response = await agent.api.app.bsky.graph.getFollows({ actor: requesterDid });
+        follows = response.data.follows.map(follow => follow.did);
+      }
+    }
+
+    const body = await algo(ctx, params, requesterDid, follows)
     return {
       encoding: 'application/json',
       body: body,

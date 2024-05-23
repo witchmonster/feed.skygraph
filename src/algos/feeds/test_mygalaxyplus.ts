@@ -37,7 +37,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
   const { whereClause, userCommunity } = await getUserCommunity(ctx, userDid, { withTopLiked: false });
 
-  let innerSelect = ctx.db
+  let builder = ctx.db
     .selectFrom([
       ctx.db.selectFrom('post')
         .select(({ fn, val, ref }) => [
@@ -56,16 +56,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     .limit(params.limit);
 
   if (existingRank) {
-    innerSelect = innerSelect
+    builder = builder
       .where('rank', '<', existingRank)
   }
-
-  let builder =
-    ctx.db
-      .selectFrom([
-        innerSelect.as('r')
-      ])
-      .selectAll()
 
   const consistentRes = await builder.execute();
 

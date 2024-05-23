@@ -8,7 +8,7 @@ import * as test_mynebulaplus from './feeds/test_mynebulaplus'
 import * as mygalaxyplus from './feeds/mygalaxyplus'
 import * as mynebulaplus from './feeds/mynebulaplus'
 
-type AlgoHandler = (ctx: AppContext, params: QueryParams, userDid?: string) => Promise<AlgoOutput>
+type AlgoHandler = (ctx: AppContext, params: QueryParams, userDid?: string, follows?: string[]) => Promise<AlgoOutput>
 
 const algos: Record<string, AlgoHandler> = {
   [mygalaxyplus.shortname]: mygalaxyplus.handler,

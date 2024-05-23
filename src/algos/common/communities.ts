@@ -5,11 +5,11 @@ import { createSecretKey } from 'crypto'
 interface CommunityResponse {
     whereClause: any,
     userCommunity: string,
-    topConstellationsByLikes?: string[]
+    topCommunitiesByLikes?: string[]
 }
 
 interface CommunityRequestConfig {
-    mode?: 'auto' | 'constellation'
+    mode?: 'auto' | 'constellation' | 'nebula'
     withTopLiked?: boolean
     withExplore?: boolean
 }
@@ -49,56 +49,60 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
         perfectCommunity = { community: (communitiesRes?.rows[0] as any)?.o, prefix: 'o' };
     }
 
+    if (mode === "nebula") {
+        perfectCommunity = { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' };
+    }
+
     console.log(`User community: ${perfectCommunity.community}`)
 
-    const whereClausePost: any = `post.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
-    const whereClauseDidToCommunity: any = `did_to_community.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
+    const postDotCommunityPrefix: any = `post.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
+    const didToCommunityDotPrefix: any = `did_to_community.${perfectCommunity ? perfectCommunity.prefix : 's'}`;
     const community = perfectCommunity ? perfectCommunity.community : 's574';
 
     if (config?.withTopLiked) {
-        const topLikedConstellationsQuery = ctx.db.selectFrom('likescore')
+        const topLikedCommunitiesQuery = ctx.db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
-            .select(['did_to_community.o', 'likescore.subject'])
+            .select([didToCommunityDotPrefix, 'likescore.subject'])
             .where('likescore.author', '=', userDid)
-            .where(whereClauseDidToCommunity, '<>', community)
+            .where(didToCommunityDotPrefix, '<>', community)
             .orderBy('likescore.score', 'desc')
             .limit(mode === "auto" ? 5 : 10);
 
-        console.log(topLikedConstellationsQuery.compile().sql);
+        console.log(topLikedCommunitiesQuery.compile().sql);
 
-        const topLikedConstellations = await topLikedConstellationsQuery.execute();
+        const topLikedCommunities = await topLikedCommunitiesQuery.execute();
 
-        const topConstellationsByLikes: string[] = topLikedConstellations.filter(n => n.o !== undefined).map(n => n.o) as any;
+        const topCommunitiesByLikes: string[] = topLikedCommunities.filter(n => n[perfectCommunity.prefix] !== undefined).map(n => n[perfectCommunity.prefix]) as any;
 
-        console.log("top constellations: " + topConstellationsByLikes)
+        console.log("top communities: " + topCommunitiesByLikes)
 
         if (config?.withExplore) {
-            if (topLikedConstellations && topLikedConstellations.length > 0) {
-                const exploreConstellationsQuery = ctx.db.selectFrom('likescore')
+            if (topLikedCommunities && topLikedCommunities.length > 0) {
+                const exploreCommunitiesQuery = ctx.db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
-                    .select(['did_to_community.o'])
-                    .where('likescore.author', 'in', topLikedConstellations.slice(0, 3).map(n => n.subject))
-                    .where(whereClauseDidToCommunity, '<>', community)
-                    .where('did_to_community.o', 'not in', topConstellationsByLikes)
+                    .select([didToCommunityDotPrefix])
+                    .where('likescore.author', 'in', topLikedCommunities.slice(0, 3).map(n => n.subject))
+                    .where(didToCommunityDotPrefix, '<>', community)
+                    .where(didToCommunityDotPrefix, 'not in', topCommunitiesByLikes)
                     .orderBy('likescore.score', 'desc')
                     .limit(10);
 
-                console.log(exploreConstellationsQuery.compile().sql);
+                console.log(exploreCommunitiesQuery.compile().sql);
 
-                const exploreConstellations = await exploreConstellationsQuery.execute();
+                const exploreCommunities = await exploreCommunitiesQuery.execute();
 
-                const exploreConstellationsByLikes: string[] = exploreConstellations.filter(n => n.o !== undefined).map(n => n.o) as any;
+                const exploreCommunitiesByLikes: string[] = exploreCommunities.filter(n => n[perfectCommunity.prefix] !== undefined).map(n => n[perfectCommunity.prefix]) as any;
 
-                console.log("explore constellations: " + exploreConstellationsByLikes)
+                console.log("explore communities: " + exploreCommunitiesByLikes)
 
-                return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes: [...topConstellationsByLikes, ...exploreConstellationsByLikes] };
+                return { whereClause: postDotCommunityPrefix, userCommunity: community, topCommunitiesByLikes: [...topCommunitiesByLikes, ...exploreCommunitiesByLikes] };
             }
         }
 
-        return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes };
+        return { whereClause: postDotCommunityPrefix, userCommunity: community, topCommunitiesByLikes: topCommunitiesByLikes };
     }
 
-    return { whereClause: whereClausePost, userCommunity: community };
+    return { whereClause: postDotCommunityPrefix, userCommunity: community };
 }
 
 export { getUserCommunity }

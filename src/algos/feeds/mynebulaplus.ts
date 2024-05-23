@@ -48,12 +48,12 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         .orderBy('rank', 'desc')
         .limit(params.limit);
 
-    const { whereClause, userCommunity: community, topConstellationsByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true });
+    const { whereClause, userCommunity: community, topCommunitiesByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true });
 
-    if (topConstellationsByLikes && topConstellationsByLikes.length > 0) {
+    if (topCommunitiesByLikes && topCommunitiesByLikes.length > 0) {
         builder = builder
             .where((eb) => eb.or([
-                eb('post.o', 'in', topConstellationsByLikes),
+                eb('post.o', 'in', topCommunitiesByLikes),
                 eb(whereClause, '=', community),
             ]))
     } else {
