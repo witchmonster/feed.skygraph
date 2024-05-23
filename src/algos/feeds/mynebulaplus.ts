@@ -1,30 +1,24 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { sql } from 'kysely'
-import { getUserCommunity } from '../common/communities'
+import { getRankomizedPosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { rateLimit, shuffleRateLimitTrim } from '../common/util'
+import { mixInFollows } from '../common/follows'
 
 // max 15 chars
 export const shortname = 'nebula_plus'
 
-function shuffleArray(array) {
-    for (var i = array.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = array[i];
-        array[i] = array[j];
-        array[j] = temp;
-    }
-}
-
-export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
-    console.log(`User ${userDid} from MyNebula+ feed`);
+export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
+    console.log(`User ${userDid} from test_mynebulaplus feed`);
 
     let seed: number;
-    let existingCid;
+    let existingRank;
+    let existingfollowsCursor;
     if (params.cursor) {
-        const [passedSeed, cid] = params.cursor.split('::')
-        existingCid = cid;
-        if (!passedSeed || !cid) {
+        const [passedSeed, rank, timestamp] = params.cursor.split('::')
+        existingRank = rank;
+        existingfollowsCursor = timestamp;
+        if (!passedSeed || !rank) {
             throw new InvalidRequestError('malformed cursor')
         }
         seed = +passedSeed;
@@ -32,60 +26,31 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         seed = new Date().getUTCMilliseconds();
     }
 
-    console.log(`${seed}::${existingCid}`);
+    console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-    let builder = ctx.db
-        .selectFrom('post')
-        .selectAll()
-        .select(({ fn, val, ref }) => [
-            //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
-            //top posts are somewhat immune and, so adding extra protection from that:
-            // if the post is popular (>50 likes) there's 70% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
-            sql<string>`((postrank.score-1)*(case when score > 50 and rand(${seed}) > 0.6 then 1 else 10/(score-1) end)*rand(${seed})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
-        ])
-        .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        // .where('post.replyParent', 'is', null)
-        .orderBy('rank', 'desc')
-        .limit(params.limit);
+    const communityConfig: CommunityRequestConfig = { mode: "constellation", withTopLiked: true, withExplore: false };
 
-    const { whereClause, userCommunity: community, expandCommunities: topCommunitiesByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true, withExplore: false });
-
-    if (topCommunitiesByLikes && topCommunitiesByLikes.length > 0) {
-        builder = builder
-            .where((eb) => eb.or([
-                eb('post.o', 'in', topCommunitiesByLikes),
-                eb(whereClause, '=', community),
-            ]))
+    let res;
+    let lastRank;
+    if (!existingRank) {
+        res = await getRankomizedPosts(ctx, params.limit * 2, userDid, communityConfig);
+        lastRank = 99999999;
     } else {
-        builder = builder
-            .where(whereClause, '=', community)
+        const rankingGravity = 3;
+        res = await getRankedPosts(ctx, existingRank, params.limit * 2, rankingGravity, userDid, communityConfig);
+        lastRank = res.at(-1)?.rank;
     }
 
-    if (existingCid) {
-        builder = builder
-            .where('post.cid', '<', existingCid)
-    }
+    const posts = shuffleRateLimitTrim(res, params.limit);
 
-    console.log(builder.compile().sql);
+    const followsCursor = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, posts, follows);
 
-    const consistentRes = await builder.execute();
-
-    console.log(`${consistentRes.length}`);
-
-    shuffleArray(consistentRes);
-
-    const feed = consistentRes.map((row) => ({
+    const feed = posts.map((row) => ({
         post: row.uri,
     }))
 
-    let cursor: string | undefined
-    const last = consistentRes.at(-1);
-    if (last) {
-        cursor = `${seed}::${last.cid}`
-    }
-
     return {
-        cursor,
+        cursor: `${seed}::${lastRank}::${followsCursor}`,
         feed,
     }
 }

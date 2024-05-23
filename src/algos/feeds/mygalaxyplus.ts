@@ -1,29 +1,23 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { sql } from 'kysely'
-import { getUserCommunity } from '../common/communities'
+import { getRankomizedPosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { rateLimit as rateLimit, shuffleArray } from '../common/util'
+import { mixInFollows } from '../common/follows'
 
 // max 15 chars
 export const shortname = 'skygraph'
 
-function shuffleArray(array) {
-  for (var i = array.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var temp = array[i];
-    array[i] = array[j];
-    array[j] = temp;
-  }
-}
-
-export const handler = async (ctx: AppContext, params: QueryParams, userDid: string) => {
-  console.log(`User ${userDid} from MyGalaxy+ feed`);
+export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
+  console.log(`User ${userDid} from test_mynebulaplus feed`);
 
   let seed: number;
   let existingRank;
+  let existingfollowsCursor;
   if (params.cursor) {
-    const [passedSeed, rank] = params.cursor.split('::')
+    const [passedSeed, rank, timestamp] = params.cursor.split('::')
     existingRank = rank;
+    existingfollowsCursor = timestamp;
     if (!passedSeed || !rank) {
       throw new InvalidRequestError('malformed cursor')
     }
@@ -32,59 +26,38 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     seed = new Date().getUTCMilliseconds();
   }
 
-  console.log(`${seed}::${existingRank}`);
+  console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-  const { whereClause, userCommunity, expandCommunities } = await getUserCommunity(ctx, userDid, { mode: "auto", withTopLiked: false, withExplore: false });
-
-  let innerSelect = ctx.db
-    .selectFrom([
-      ctx.db.selectFrom('post')
-        .select(({ fn, val, ref }) => [
-          //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-          'post.uri',
-          sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,3))`.as('rank')
-        ])
-        .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        .select(['postrank.score'])
-        .where(whereClause, '=', userCommunity)
-        // .where('post.replyParent', 'is', null)
-        .orderBy('rank', 'desc')
-        .as('a')
-    ])
-    .selectAll()
-    .limit(params.limit);
-
-  if (existingRank) {
-    innerSelect = innerSelect
-      .where('rank', '<', existingRank)
+  const communityConfig: CommunityRequestConfig = { mode: "nebula", withTopLiked: true, withExplore: true };
+  let res;
+  let lastRank;
+  if (!existingRank) {
+    res = await getRankomizedPosts(ctx, params.limit * 2, userDid, communityConfig);
+    lastRank = 99999999;
+  } else {
+    const rankingGravity = 3;
+    res = await getRankedPosts(ctx, existingRank, params.limit * 2, rankingGravity, userDid, communityConfig);
+    lastRank = res.at(-1)?.rank;
   }
 
-  let builder =
-    ctx.db
-      .selectFrom([
-        innerSelect.as('r')
-      ])
-      .selectAll()
+  shuffleArray(res);
 
-  const consistentRes = await builder.execute();
+  console.log(`${res.length}`);
 
-  console.log(`${consistentRes.length}`);
+  const rateLimitedRes = rateLimit(res, true);
 
-  //feed feels less boring this way
-  shuffleArray(consistentRes);
+  console.log(`rate limited to: ${rateLimitedRes.length}`);
 
-  const feed = consistentRes.map((row) => ({
+  const posts = rateLimitedRes.slice(0, params.limit);
+
+  const followsCursor = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, posts, follows);
+
+  const feed = posts.map((row) => ({
     post: row.uri,
   }))
 
-  let cursor: string | undefined
-  const last = consistentRes.at(-1);
-  if (last) {
-    cursor = `${seed}::${last.rank}`
-  }
-
   return {
-    cursor,
+    cursor: `${seed}::${lastRank}::${followsCursor}`,
     feed,
   }
 }
