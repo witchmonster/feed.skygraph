@@ -2,6 +2,15 @@ import { sql } from 'kysely'
 import { AppContext } from '../../config'
 import { createSecretKey } from 'crypto'
 
+enum Prefixes {
+    Gigacluster = 'f',
+    Supercluster = 's',
+    Cluster = 'c',
+    Galaxy = 'g',
+    Nebula = 'e',
+    Constellation = 'o',
+}
+
 interface CommunityResponse {
     whereClause: any,
     userCommunity: string,
@@ -105,4 +114,65 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
     return { whereClause: postDotCommunityPrefix, userCommunity: community };
 }
 
-export { getUserCommunity }
+const getRankomizedPosts = async (ctx: AppContext, limit: number, prefix: any, communities: string[]) => {
+    const whereClause: any = `post.${prefix}`;
+    let randomized = ctx.db
+        .selectFrom('post')
+        .selectAll()
+        .select(({ fn, val, ref }) => [
+            //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
+            //top posts are somewhat immune and, so adding extra protection from that:
+            // if the post is popular (>50 likes) there's 90% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
+            sql<string>`((postrank.score-1)*(case when score > 50 and rand() > 0.8 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+        ])
+        .innerJoin('postrank', 'post.uri', 'postrank.uri')
+        .where(whereClause, 'in', communities)
+        // .where('post.replyParent', 'is', null)
+        .orderBy('rank', 'desc')
+        .limit(limit);
+
+    console.log(randomized.compile().sql);
+
+    return await randomized.execute();
+}
+
+const getRankedPosts = async (ctx: AppContext, existingRank: number, limit: number, prefix: any, gravity: number, communities: string[]) => {
+    let ranked = ctx.db
+        .selectFrom([
+            ctx.db.selectFrom('post')
+                .select(({ fn, val, ref }) => [
+                    //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+                    'post.uri', 'post.author', prefix,
+                    sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+                ])
+                .innerJoin('postrank', 'post.uri', 'postrank.uri')
+                .select(['postrank.score'])
+                // .where('post.replyParent', 'is', null)
+                .orderBy('rank', 'desc')
+                .as('a')
+        ])
+        .selectAll()
+        .where(prefix, 'in', communities)
+        .limit(limit);
+
+    if (existingRank) {
+        ranked = ranked
+            .where('rank', '<', existingRank)
+    }
+
+    console.log(ranked.compile().sql);
+
+    return await ranked.execute();
+}
+
+const getUserCommunities = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<{ communities: string[], prefix: string }> => {
+    const { whereClause, userCommunity, topCommunitiesByLikes } = await getUserCommunity(ctx, userDid, config);
+    const prefix = userCommunity.substring(0, 1);
+    if (topCommunitiesByLikes && topCommunitiesByLikes.length > 0) {
+        return { communities: [userCommunity, ...topCommunitiesByLikes], prefix };
+    } else {
+        return { communities: [userCommunity], prefix };
+    }
+}
+
+export { getUserCommunity, getUserCommunities, getRankomizedPosts, getRankedPosts, Prefixes }

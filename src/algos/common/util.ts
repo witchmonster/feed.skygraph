@@ -11,16 +11,17 @@ function shuffleArray(array: any) {
     }
 }
 
-function rateLimit(array: PostResult[], maxPosts: number): PostResult[] {
+function rateLimit(array: PostResult[]): PostResult[] {
     const newArray: Map<string, PostResult> = new Map();
-    const rate: Map<string, number> = new Map();
     for (var i = 0; i < array.length; i++) {
-        const authorsRate = rate.get(array[i].author);
-        if (newArray.get(array[i].author) && authorsRate && authorsRate >= maxPosts) {
-            //do nothing
+        if (newArray.get(array[i].author)) {
+            //random chance to overwrite the post with a different one
+            // to give each post a chance every refresh
+            if (Math.random() >= 0.8) {
+                newArray.set(array[i].author, array[i]);
+            }
         } else {
             newArray.set(array[i].author, array[i]);
-            rate.set(array[i].author, (authorsRate ?? 0) + 1)
         }
     }
     return Array.from(newArray.values());
