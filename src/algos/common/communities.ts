@@ -11,6 +11,7 @@ interface CommunityResponse {
 interface CommunityRequestConfig {
     mode?: 'auto' | 'constellation'
     withTopLiked?: boolean
+    withExplore?: boolean
 }
 
 const getUserCommunity = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
@@ -71,21 +72,33 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
 
         console.log("top constellations: " + topConstellationsByLikes)
 
+        if (config?.withExplore) {
+            if (topLikedConstellations && topLikedConstellations.length > 0) {
+                const exploreConstellationsQuery = ctx.db.selectFrom('likescore')
+                    .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
+                    .select(['did_to_community.o'])
+                    .where('likescore.author', 'in', topLikedConstellations.slice(0, 3).map(n => n.subject))
+                    .where(whereClauseDidToCommunity, '<>', community)
+                    .where('did_to_community.o', 'not in', topConstellationsByLikes)
+                    .orderBy('likescore.score', 'desc')
+                    .limit(10);
+
+                console.log(exploreConstellationsQuery.compile().sql);
+
+                const exploreConstellations = await exploreConstellationsQuery.execute();
+
+                const exploreConstellationsByLikes: string[] = exploreConstellations.filter(n => n.o !== undefined).map(n => n.o) as any;
+
+                console.log("explore constellations: " + exploreConstellationsByLikes)
+
+                return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes: [...topConstellationsByLikes, ...exploreConstellationsByLikes] };
+            }
+        }
+
         return { whereClause: whereClausePost, userCommunity: community, topConstellationsByLikes };
     }
 
     return { whereClause: whereClausePost, userCommunity: community };
 }
-
-// let exploreNebulae;
-// if (topLikedNebulae && topLikedNebulae.length > 0) {
-//     exploreNebulae = await ctx.db.selectFrom('likescore')
-//         .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
-//         .select(['did_to_community.e'])
-//         .where('likescore.author', 'in', topLikedNebulae.map(n => n.subject))
-//         .where(whereClause, '<>', perfectCommunity.community)
-//         .limit(5)
-//         .execute();
-// }
 
 export { getUserCommunity }

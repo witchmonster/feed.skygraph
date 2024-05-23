@@ -14,7 +14,7 @@ function shuffleArray(array: any) {
 function rateLimit(array: PostResult[], maxPosts: number): PostResult[] {
     const newArray: Map<string, PostResult> = new Map();
     const rate: Map<string, number> = new Map();
-    for (var i = array.length - 1; i > 0; i--) {
+    for (var i = 0; i < array.length; i++) {
         const authorsRate = rate.get(array[i].author);
         if (newArray.get(array[i].author) && authorsRate && authorsRate >= maxPosts) {
             //do nothing
