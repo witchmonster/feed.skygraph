@@ -48,7 +48,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         .orderBy('rank', 'desc')
         .limit(params.limit);
 
-    const { whereClause, userCommunity: community, topCommunitiesByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true });
+    const { whereClause, userCommunity: community, expandCommunities: topCommunitiesByLikes } = await getUserCommunity(ctx, userDid, { mode: "constellation", withTopLiked: true, withExplore: false });
 
     if (topCommunitiesByLikes && topCommunitiesByLikes.length > 0) {
         builder = builder

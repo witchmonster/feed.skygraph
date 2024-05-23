@@ -55,16 +55,13 @@ export default function (server: Server, ctx: AppContext) {
     }
 
     let follows;
-    if (requesterDid) {
-      const agent = new AtpAgent({ service: 'https://bsky.social' })
-      const handle = process.env.BSKY_USER;
-      const password = process.env.BSKY_PASSWORD;
-
-      if (handle && password) {
-        await agent.login({ identifier: handle, password })
-        const response = await agent.api.app.bsky.graph.getFollows({ actor: requesterDid });
+    try {
+      if (requesterDid) {
+        const response = await ctx.agent.api.app.bsky.graph.getFollows({ actor: requesterDid });
         follows = response.data.follows.map(follow => follow.did);
       }
+    } catch (err) {
+      console.log(`Couldn't get follows.`)
     }
 
     const body = await algo(ctx, params, requesterDid, follows)

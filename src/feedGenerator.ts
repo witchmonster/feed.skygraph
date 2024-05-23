@@ -8,6 +8,7 @@ import describeGenerator from './methods/describe-generator'
 import { createDb, Database, migrateToLatest } from './db'
 import { AppContext, Config } from './config'
 import wellKnown from './well-known'
+import AtpAgent from '@atproto/api'
 
 export class FeedGenerator {
   public app: express.Application
@@ -25,7 +26,7 @@ export class FeedGenerator {
     this.cfg = cfg
   }
 
-  static create(cfg: Config) {
+  static async create(cfg: Config) {
     const app = express()
     const db = createDb()
 
@@ -43,8 +44,15 @@ export class FeedGenerator {
         blobLimit: 5 * 1024 * 1024, // 5mb
       },
     })
+    const agent = new AtpAgent({ service: 'https://bsky.social' })
+    const handle = process.env.BSKY_USER;
+    const password = process.env.BSKY_PASSWORD;
+    if (handle && password) {
+      const session = await agent.login({ identifier: handle, password });
+    }
     const ctx: AppContext = {
       db,
+      agent,
       didResolver,
       cfg,
     }

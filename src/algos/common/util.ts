@@ -1,5 +1,8 @@
 interface PostResult {
-    author: string, uri: string
+    author: string,
+    uri: string,
+    indexedAt: string;
+    rank?: string;
 }
 
 function shuffleArray(array: any) {
@@ -11,13 +14,13 @@ function shuffleArray(array: any) {
     }
 }
 
-function rateLimit(array: PostResult[]): PostResult[] {
+function rateLimit(array: PostResult[], randomize?: boolean): PostResult[] {
     const newArray: Map<string, PostResult> = new Map();
     for (var i = 0; i < array.length; i++) {
         if (newArray.get(array[i].author)) {
             //random chance to overwrite the post with a different one
             // to give each post a chance every refresh
-            if (Math.random() >= 0.8) {
+            if (randomize && Math.random() >= 0.8) {
                 newArray.set(array[i].author, array[i]);
             }
         } else {
@@ -27,4 +30,16 @@ function rateLimit(array: PostResult[]): PostResult[] {
     return Array.from(newArray.values());
 }
 
-export { shuffleArray, rateLimit }
+function shuffleRateLimitTrim(res: PostResult[], limit: number) {
+    shuffleArray(res);
+
+    console.log(`total posts: ${res.length}`);
+
+    const rateLimitedRes = rateLimit(res, true);
+
+    console.log(`rate limited to: ${rateLimitedRes.length}`);
+
+    return rateLimitedRes.slice(0, limit);
+}
+
+export { shuffleArray, rateLimit, shuffleRateLimitTrim }

@@ -34,7 +34,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
   console.log(`${seed}::${existingRank}`);
 
-  const { whereClause, userCommunity } = await getUserCommunity(ctx, userDid, { withTopLiked: false });
+  const { whereClause, userCommunity, expandCommunities } = await getUserCommunity(ctx, userDid, { mode: "auto", withTopLiked: false, withExplore: false });
 
   let innerSelect = ctx.db
     .selectFrom([

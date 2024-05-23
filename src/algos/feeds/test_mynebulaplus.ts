@@ -1,8 +1,9 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getRankomizedPosts, getRankedPosts, getUserCommunities } from '../common/communities'
-import { rateLimit, shuffleArray } from '../common/util'
+import { getRankomizedPosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { rateLimit, shuffleRateLimitTrim } from '../common/util'
+import { mixInFollows } from '../common/follows'
 
 // max 15 chars
 export const shortname = 'dynamic'
@@ -12,9 +13,11 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
     let seed: number;
     let existingRank;
+    let existingfollowsCursor;
     if (params.cursor) {
-        const [passedSeed, rank] = params.cursor.split('::')
+        const [passedSeed, rank, timestamp] = params.cursor.split('::')
         existingRank = rank;
+        existingfollowsCursor = timestamp;
         if (!passedSeed || !rank) {
             throw new InvalidRequestError('malformed cursor')
         }
@@ -23,36 +26,31 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         seed = new Date().getUTCMilliseconds();
     }
 
-    console.log(`${seed}::${existingRank}`);
+    console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-    const { communities, prefix } = await getUserCommunities(ctx, userDid, { mode: "constellation", withTopLiked: true, withExplore: true });
+    const communityConfig: CommunityRequestConfig = { mode: "constellation", withTopLiked: true, withExplore: false };
 
     let res;
+    let lastRank;
     if (!existingRank) {
-        res = await getRankomizedPosts(ctx, params.limit, prefix, communities);
+        res = await getRankomizedPosts(ctx, params.limit * 2, userDid, communityConfig);
+        lastRank = 99999999;
     } else {
         const rankingGravity = 3;
-        res = await getRankedPosts(ctx, existingRank, params.limit, prefix, rankingGravity, communities);
+        res = await getRankedPosts(ctx, existingRank, params.limit * 2, rankingGravity, userDid, communityConfig);
+        lastRank = res.at(-1)?.rank;
     }
 
-    console.log(`${res.length}`);
-    shuffleArray(res);
+    const posts = shuffleRateLimitTrim(res, params.limit);
 
-    const rateLimitedRes = rateLimit(res);
-    console.log(`rate limited to: ${rateLimitedRes.length}`);
+    const followsCursor = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, posts, follows);
 
-    const feed = rateLimitedRes.map((row) => ({
+    const feed = posts.map((row) => ({
         post: row.uri,
     }))
 
-    let cursor: string | undefined
-    const last = res.at(-1);
-    if (last) {
-        cursor = `${seed}::${existingRank ? last.rank : 99999999999}`
-    }
-
     return {
-        cursor,
+        cursor: `${seed}::${lastRank}::${followsCursor}`,
         feed,
     }
 }
