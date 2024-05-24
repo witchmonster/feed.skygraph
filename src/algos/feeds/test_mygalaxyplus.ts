@@ -1,7 +1,7 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getRankedPostsWithDrops } from '../common/communities'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getRankomizedPosts } from '../common/communities'
 import { mixInPosts, rateLimit as rateLimit, shuffleArray, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
@@ -42,7 +42,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     lastRank = 99999999;
   } else {
     res = await getRankedPosts(ctx, existingRank, params.limit, 3, userDid, communityConfig);
-    const res2: any = await getRankedPostsWithDrops(ctx, existingRank, params.limit, 4, userDid, communityConfig);
+    const res2: any = await getRankomizedPosts(ctx, existingRank, params.limit, 4, userDid, communityConfig);
     await mixInPosts(seed, 2, res, res2)
     lastRank = res.at(-1)?.rank;
   }

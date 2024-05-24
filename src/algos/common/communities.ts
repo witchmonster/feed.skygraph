@@ -182,12 +182,12 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string
     return await rankomized.execute();
 }
 
-const getRankedPostsWithDrops = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
+const getRankomizedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
     console.log(`getting ranked posts with drops`);
     const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
 
     const dropChance = 0.5;
-    const dropQuery = `(case when score < 50 and rand() >= ${dropChance} then 1 else 0 end)`;
+    const dropQuery = `(case when score < 50 and rand() >= ${dropChance} then 1 else rand() end)`;
     let innerSelect = ctx.db.selectFrom('post')
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
@@ -295,4 +295,4 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     }
 }
 
-export { getUserCommunity, getUserCommunities, getFirstPagePosts, getRankedPostsWithDrops, getRankedPosts, CommunityRequestConfig }
+export { getUserCommunity, getUserCommunities, getFirstPagePosts, getRankomizedPosts, getRankedPosts, CommunityRequestConfig }
