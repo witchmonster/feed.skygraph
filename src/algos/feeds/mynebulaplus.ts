@@ -1,7 +1,7 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getRankomizedPosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
 import { rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
@@ -28,12 +28,18 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
     console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-    const communityConfig: CommunityRequestConfig = { mode: "constellation", withTopLiked: true, withExplore: true };
+    const communityConfig: CommunityRequestConfig = {
+        mode: "constellation",
+        withTopLiked: true,
+        withExplore: true,
+        topLikedLimit: 10,
+        trustedFriendsLimit: 1
+    };
 
     let res;
     let lastRank;
     if (!existingRank) {
-        res = await getRankomizedPosts(ctx, params.limit * 2, userDid, communityConfig);
+        res = await getFirstPagePosts(ctx, params.limit * 2, userDid, communityConfig);
         lastRank = 99999999;
     } else {
         const rankingGravity = 3;
@@ -41,11 +47,11 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         lastRank = res.at(-1)?.rank;
     }
 
-    const posts = shuffleRateLimitTrim(res, params.limit);
+    const shuffledPosts = shuffleRateLimitTrim(res, params.limit);
 
-    const followsCursor = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, posts, follows);
+    const { followsCursor, resultPosts } = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
 
-    const feed = posts.map((row) => ({
+    const feed = resultPosts.map((row) => ({
         post: row.uri,
     }))
 

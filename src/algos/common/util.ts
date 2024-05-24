@@ -42,4 +42,29 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number) {
     return rateLimitedRes.slice(0, limit);
 }
 
-export { shuffleArray, rateLimit, shuffleRateLimitTrim }
+const mixInPosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[], postsToMixIn: { author: string, uri: string }[]) => {
+    let i = 0;
+    let j = 0;
+    //never replace last post since it's used in ranking
+    const mixedInPosts: { author: string, uri: string }[] = [];
+    while (i < originalPosts.length && j < postsToMixIn.length) {
+        if (originalPosts[i].author === postsToMixIn[j].author) {
+            mixedInPosts.push(originalPosts[j]);
+            console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
+            i++;
+        } else {
+            if (mixedInPosts.length % rate === seed % rate) {
+                mixedInPosts.push(postsToMixIn[j]);
+                console.log(`${mixedInPosts.length}=>mixed in at [${j}]:${postsToMixIn[j].uri}`)
+                j++;
+            } else {
+                mixedInPosts.push(originalPosts[j]);
+                console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
+                i++;
+            }
+        }
+    }
+    return mixedInPosts;
+}
+
+export { shuffleArray, rateLimit, shuffleRateLimitTrim, mixInPosts }

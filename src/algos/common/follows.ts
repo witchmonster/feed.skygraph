@@ -24,27 +24,33 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
 
 const mixInFollows = async (ctx: AppContext, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
     let followsCursor;
+    let resultPosts: { author: string, uri: string }[] = [];
     if (follows && follows.length > 0) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
         const rateLimitedFollows = rateLimit(followsResponse, false);
-        if (rateLimitedFollows && rateLimitedFollows.length > 0) {
-            //shuffle in some follows (25%). followsPosts are chronological
-            let j = 0;
-            for (let i = 0; i < posts.length && j < rateLimitedFollows.length; i++) {
-                const pos = seed % 5;
-                //never zero - it's annoying and sticky
-                if (pos !== 0 && i % 5 === pos) {
-                    posts[i] = rateLimitedFollows[j];
-                    followsCursor = rateLimitedFollows[j].indexedAt;
-                    console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
+        let j = 0;
+        let i = 0;
+        while (i < posts.length && j < follows.length && resultPosts.length < limit) {
+            if (posts[i].author === posts[j].author) {
+                resultPosts.push(posts[j]);
+                console.log(`${resultPosts.length}=>original ${posts[i].uri}`)
+                i++;
+            } else {
+                if (resultPosts.length % 3 === seed % 3) {
+                    resultPosts.push(rateLimitedFollows[j]);
+                    console.log(`${resultPosts.length}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
                     j++;
                 } else {
-                    console.log(`${i}=>original ${posts[i].uri}`)
+                    resultPosts.push(posts[j]);
+                    console.log(`${resultPosts.length}=>original ${posts[i].uri}`)
+                    i++;
                 }
             }
         }
+    } else {
+        resultPosts = posts.slice(0, limit);
     }
-    return followsCursor;
+    return { followsCursor, resultPosts };
 }
 
 export { mixInFollows }

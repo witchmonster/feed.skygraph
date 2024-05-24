@@ -1,8 +1,8 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getRankomizedPosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
-import { rateLimit as rateLimit, shuffleArray } from '../common/util'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getRankedPostsWithDrops } from '../common/communities'
+import { mixInPosts, rateLimit as rateLimit, shuffleArray, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
 // max 15 chars
@@ -28,31 +28,30 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
   console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-  const communityConfig: CommunityRequestConfig = { mode: "nebula", withTopLiked: true, withExplore: true };
+  const communityConfig: CommunityRequestConfig = {
+    mode: "nebula",
+    withTopLiked: true,
+    withExplore: true,
+    topLikedLimit: 8,
+    trustedFriendsLimit: 5
+  };
   let res;
   let lastRank;
   if (!existingRank) {
-    res = await getRankomizedPosts(ctx, params.limit * 2, userDid, communityConfig);
+    res = await getFirstPagePosts(ctx, params.limit * 2, userDid, communityConfig);
     lastRank = 99999999;
   } else {
-    const rankingGravity = 3;
-    res = await getRankedPosts(ctx, existingRank, params.limit * 2, rankingGravity, userDid, communityConfig);
+    res = await getRankedPosts(ctx, existingRank, params.limit, 3, userDid, communityConfig);
+    const res2: any = await getRankedPostsWithDrops(ctx, existingRank, params.limit, 4, userDid, communityConfig);
+    await mixInPosts(seed, 2, res, res2)
     lastRank = res.at(-1)?.rank;
   }
 
-  shuffleArray(res);
+  const shuffledPosts = shuffleRateLimitTrim(res, params.limit);
 
-  console.log(`${res.length}`);
+  const { followsCursor, resultPosts } = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
 
-  const rateLimitedRes = rateLimit(res, true);
-
-  console.log(`rate limited to: ${rateLimitedRes.length}`);
-
-  const posts = rateLimitedRes.slice(0, params.limit);
-
-  const followsCursor = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, posts, follows);
-
-  const feed = posts.map((row) => ({
+  const feed = resultPosts.map((row) => ({
     post: row.uri,
   }))
 

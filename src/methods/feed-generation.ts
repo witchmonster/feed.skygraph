@@ -54,6 +54,10 @@ export default function (server: Server, ctx: AppContext) {
       )
     }
 
+    if (!requesterDid) {
+      requesterDid = 'did:plc:v7iswx544swf2usdcp32p647'
+    }
+
     let follows;
     try {
       if (requesterDid) {
