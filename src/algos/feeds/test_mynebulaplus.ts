@@ -42,10 +42,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         lastRank = 99999999;
     } else {
         res = await getRankedPostsWithDrops(ctx, existingRank, params.limit * 2, 3, userDid, communityConfig);
-        console.log(res.length)
-        const res2: any = await getRankedPostsWithDrops(ctx, existingRank, params.limit * 2, 4, userDid, communityConfig);
-        res = await mixInPosts(seed, 2, rateLimit(res), rateLimit(res2))
         lastRank = res.at(-1)?.rank;
+        const res2: any = await getRankedPostsWithDrops(ctx, existingRank, params.limit * 2, 4, userDid, communityConfig);
+        res = await mixInPosts(seed, 2, rateLimit(res), rateLimit(res2));
     }
 
     const shuffledPosts = shuffleRateLimitTrim(res, params.limit);
