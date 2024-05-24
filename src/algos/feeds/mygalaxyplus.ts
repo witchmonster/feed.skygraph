@@ -9,7 +9,7 @@ import { mixInFollows } from '../common/follows'
 export const shortname = 'skygraph'
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
-  console.log(`User ${userDid} from test_mynebulaplus feed`);
+  console.log(`User ${userDid} from "My Galaxy+" feed`);
 
   let seed: number;
   let existingRank;

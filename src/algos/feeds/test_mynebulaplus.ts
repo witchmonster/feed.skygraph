@@ -28,7 +28,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
 
     console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
 
-    const communityConfig: CommunityRequestConfig = { mode: "constellation", withTopLiked: true, withExplore: false };
+    const communityConfig: CommunityRequestConfig = { mode: "constellation", withTopLiked: true, withExplore: true };
 
     let res;
     let lastRank;

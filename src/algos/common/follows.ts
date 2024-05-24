@@ -6,12 +6,6 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
     let chronological = ctx.db
         .selectFrom('post')
         .selectAll()
-        .select(({ fn, val, ref }) => [
-            //NH ranking * rand(seed) - randomizes posts positions on every refresh while keeping them ~ranked
-            //top posts are somewhat immune and, so adding extra protection from that:
-            // if the post is popular (>50 likes) there's 90% chance it will get downranked to 10 likes so you don't see the same top liked post on top all the time
-            sql<string>`((postrank.score-1)*(case when score > 50 and rand() > 0.8 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
-        ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where('post.author', 'in', follows)
         // .where('post.replyParent', 'is', null)

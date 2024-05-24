@@ -64,25 +64,26 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
     if (mode === "constellation") {
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.o, prefix: 'o' } : { community: 's574', prefix: 's' };
         expandCommunityPrefix = "o"
-        topLikedLimit = 5;
+        topLikedLimit = 10;
         trustedFriendsLimit = 1;
-        explorationLimit = 3;
+        explorationLimit = 5;
     }
 
     if (mode === "nebula") {
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' } : { community: 's574', prefix: 's' };
         expandCommunityPrefix = 'e';
-        topLikedLimit = 1;
-        trustedFriendsLimit = 1;
-        explorationLimit = 1;
-    }
-
-    if (mode === "auto") {
-        userCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
-        expandCommunityPrefix = 'o';
         topLikedLimit = 5;
         trustedFriendsLimit = 1;
         explorationLimit = 3;
+    }
+
+    //currently unused
+    if (mode === "auto") {
+        userCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
+        expandCommunityPrefix = 'o';
+        topLikedLimit = 10;
+        trustedFriendsLimit = 1;
+        explorationLimit = 5;
     }
 
     const userPostDotCommunityPrefix: any = `post.${userCommunity.prefix}`;
@@ -97,7 +98,8 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
             //choose communities by poasters user liked most
             .where('likescore.author', '=', userDid)
             .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
-            .orderBy('likescore.score', 'desc')
+            .groupBy(expandDidToCommunityDotPrefix)
+            .orderBy(sql`max(likescore.score)`, 'desc')
             .limit(topLikedLimit);
 
         // console.log(topLikedCommunitiesQuery.compile().sql);
@@ -108,7 +110,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
 
         // console.log("top liked communities: " + topCommunitiesByLikes)
 
-        if (config?.withExplore) {
+        if (config?.withExplore && topCommunitiesByLikes.length < topLikedLimit) {
             if (topLikedCommunities && topLikedCommunities.length > 0) {
                 const exploreCommunitiesQuery = ctx.db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
@@ -118,7 +120,8 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
                     //exclude already seen communities
                     .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
                     .where(expandDidToCommunityDotPrefix, 'not in', topCommunitiesByLikes)
-                    .orderBy('likescore.score', 'desc')
+                    .groupBy(expandDidToCommunityDotPrefix)
+                    .orderBy(sql`max(likescore.score)`, 'desc')
                     .limit(explorationLimit);
 
                 // console.log(exploreCommunitiesQuery.compile().sql);
