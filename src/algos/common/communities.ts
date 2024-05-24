@@ -99,7 +99,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
             .where('likescore.author', '=', userDid)
             .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
             .groupBy(expandDidToCommunityDotPrefix)
-            .orderBy(sql`max(likescore.score)`, 'desc')
+            .orderBy(sql`sum(likescore.score)`, 'desc')
             .limit(topLikedLimit);
 
         // console.log(topLikedCommunitiesQuery.compile().sql);
@@ -121,7 +121,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
                     .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
                     .where(expandDidToCommunityDotPrefix, 'not in', topCommunitiesByLikes)
                     .groupBy(expandDidToCommunityDotPrefix)
-                    .orderBy(sql`max(likescore.score)`, 'desc')
+                    .orderBy(sql`sum(likescore.score)`, 'desc')
                     .limit(explorationLimit);
 
                 // console.log(exploreCommunitiesQuery.compile().sql);
