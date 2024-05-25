@@ -214,11 +214,11 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number
             //top posts are somewhat immune and, so adding extra protection from that:
             //for a popular post there's 90% chance it will get downranked to 1 like so it doesn't stick around on top all the time
             //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.5 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.3 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
-        .where('post.replyParent', 'is', null)
+        // .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc')
         .limit(limit);
 
