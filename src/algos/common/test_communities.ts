@@ -218,7 +218,7 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
-        // .where('post.replyParent', 'is', null)
+        .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc')
         .limit(limit);
 
@@ -227,7 +227,7 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number
     return await rankomized.execute();
 }
 
-const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, communityResponse: CommunityResponse) => {
+const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, skipReplies: boolean, communityResponse: CommunityResponse) => {
     console.log(`-------------------- ranked posts --------------------`);
     if (existingRank === '0') {
         return undefined;
@@ -261,8 +261,12 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .select(['postrank.score'])
-        // .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc');
+
+    if (skipReplies) {
+        innerSelect = innerSelect
+            .where('post.replyParent', 'is', null)
+    }
 
     let ranked = ctx.db
         .selectFrom([
