@@ -6,7 +6,7 @@ import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
 // max 15 chars
-export const shortname = 'dynamic'
+export const shortname = 'test'
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
   console.log(`User ${userDid} from test_mynebulaplus feed`);

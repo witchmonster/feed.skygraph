@@ -34,6 +34,7 @@ const mixInFollows = async (ctx: AppContext, existingCursor: string, limit: numb
                 posts[i] = rateLimitedFollows[j];
                 console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
                 j++;
+                i++;
             } else {
                 console.log(`${i}=>original ${posts[i].uri}`)
                 i++;
