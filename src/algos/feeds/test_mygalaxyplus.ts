@@ -1,7 +1,7 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getUserCommunities, CommunityResponse } from '../common/test_communities'
 import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
@@ -34,20 +34,21 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     mode: "nebula",
     withTopLiked: true,
     withExplore: true,
-    topLikedLimit: 8,
+    topLikedLimit: 5,
     trustedFriendsLimit: 5
   };
   let res: any;
   let lastRank1;
   let lastRank2;
+  const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
   if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, params.limit * 2, userDid, { ...communityConfig, withExplore: false });
+    res = await getFirstPagePosts(ctx, params.limit * 2, 3, communityResponse);
     lastRank1 = 99999999;
     lastRank2 = 99999999;
   } else {
-    res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, userDid, communityConfig);
+    res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, communityResponse);
     lastRank1 = res?.at(-1).rank;
-    const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, userDid, { ...communityConfig, withExplore: false });
+    const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, communityResponse);
     lastRank2 = res2?.at(-1).rank;
     res = await mergePosts(seed, 2, rateLimit(res), rateLimit(res2));
   }
