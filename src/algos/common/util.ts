@@ -14,7 +14,10 @@ function shuffleArray(array: any) {
     }
 }
 
-function rateLimit(array: PostResult[], randomize?: boolean): PostResult[] {
+function rateLimit(array: PostResult[] | undefined, randomize?: boolean): PostResult[] {
+    if (!array) {
+        return [];
+    }
     const newArray: Map<string, PostResult> = new Map();
     for (var i = 0; i < array.length; i++) {
         if (newArray.get(array[i].author)) {
@@ -42,7 +45,10 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number) {
     return rateLimitedRes.slice(0, limit);
 }
 
-const mergePosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[], postsToMixIn: { author: string, uri: string }[]) => {
+const mergePosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[] | undefined, postsToMixIn: { author: string, uri: string }[] | undefined) => {
+    if (!originalPosts || !postsToMixIn) {
+        return [];
+    }
     let i = 0;
     let j = 0;
     //never replace last post since it's used in ranking
@@ -50,16 +56,16 @@ const mergePosts = async (seed: number, rate: number, originalPosts: { author: s
     while (i < originalPosts.length && j < postsToMixIn.length) {
         if (originalPosts[i].author === postsToMixIn[j].author) {
             mixedInPosts.push(originalPosts[j]);
-            console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
+            // console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
             i++;
         } else {
             if (mixedInPosts.length % rate === seed % rate) {
                 mixedInPosts.push(postsToMixIn[j]);
-                console.log(`${mixedInPosts.length}=>mixed in at [${j}]:${postsToMixIn[j].uri}`)
+                // console.log(`${mixedInPosts.length}=>mixed in at [${j}]:${postsToMixIn[j].uri}`)
                 j++;
             } else {
                 mixedInPosts.push(originalPosts[j]);
-                console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
+                // console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
                 i++;
             }
         }

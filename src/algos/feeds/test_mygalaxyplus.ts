@@ -28,7 +28,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     seed = new Date().getUTCMilliseconds();
   }
 
-  console.log(`${seed}::${existingRank1}::${existingfollowsCursor}`);
+  console.log(`${seed}::${existingRank1}::${existingRank2}::${existingfollowsCursor}`);
 
   const communityConfig: CommunityRequestConfig = {
     mode: "nebula",
@@ -40,15 +40,15 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   let res: any;
   let lastRank1;
   let lastRank2;
-  if (!existingRank1) {
-    res = await getFirstPagePosts(ctx, params.limit * 2, userDid, communityConfig);
+  if (!existingRank1 || !existingRank2) {
+    res = await getFirstPagePosts(ctx, params.limit * 2, userDid, { ...communityConfig, withExplore: false });
     lastRank1 = 99999999;
     lastRank2 = 99999999;
   } else {
     res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, userDid, communityConfig);
-    lastRank1 = res.at(-1).rank;
-    const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, userDid, communityConfig);
-    lastRank2 = res2.at(-1).rank;
+    lastRank1 = res?.at(-1).rank;
+    const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, userDid, { ...communityConfig, withExplore: false });
+    lastRank2 = res2?.at(-1).rank;
     res = await mergePosts(seed, 2, rateLimit(res), rateLimit(res2));
   }
 
@@ -61,7 +61,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   }))
 
   const cursor = `${seed}::${lastRank1}::${lastRank2}::${followsCursor}`;
-  console.log({ feed, cursor })
+  // console.log({ feed, cursor })
 
   return {
     cursor,

@@ -86,7 +86,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
-    console.log({ userCommunity, expandCommunityPrefix, topLikedLimit, trustedFriendsLimit })
+    // console.log({ userCommunity, expandCommunityPrefix, topLikedLimit, trustedFriendsLimit })
 
     const userPostDotCommunityPrefix: any = `post.${userCommunity.prefix}`;
     const userDidToCommunityDotPrefix: any = `did_to_community.${userCommunity.prefix}`;
@@ -148,7 +148,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
 }
 
 const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string, config: CommunityRequestConfig) => {
-    console.log(`getting first page posts`);
+    // console.log(`getting first page posts`);
     const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
 
     let rankomized = ctx.db
@@ -159,7 +159,7 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string
             //top posts are somewhat immune and, so adding extra protection from that:
             //for a popular post there's 90% chance it will get downranked to 1 like so it doesn't stick around on top all the time
             //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.9 then 1 else 10/(score-1) end)*(case when score < 50 and rand() >= 0.5 then 1 else 1/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.8 then 1 else 10/(score-1) end)*(case when score < 50 and rand() >= 0.3 then 1 else 1/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         // .where('post.replyParent', 'is', null)
@@ -183,7 +183,11 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string
 }
 
 const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
-    console.log(`getting ranked posts`);
+    // console.log(`getting ranked posts`);
+    if (existingRank === '0') {
+        return undefined;
+    }
+
     const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
 
     let innerSelect = ctx.db.selectFrom('post')
@@ -224,7 +228,7 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
             .where(userCommunity.prefix, '=', userCommunity.community)
     }
 
-    // console.log(ranked.compile().sql);
+    console.log(ranked.compile().sql);
 
     return await ranked.execute();
 }
