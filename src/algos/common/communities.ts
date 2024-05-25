@@ -104,7 +104,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
             .orderBy(sql`sum(likescore.score)`, 'desc')
             .limit(topLikedLimit);
 
-        console.log(topLikedCommunitiesQuery.compile().sql);
+        // console.log(topLikedCommunitiesQuery.compile().sql);
 
         const topLikedCommunities = await topLikedCommunitiesQuery.execute();
 
@@ -126,7 +126,7 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
                     .orderBy(sql`sum(likescore.score)`, 'desc')
                     .limit(topLikedLimit - topCommunitiesByLikes.length);
 
-                console.log(exploreCommunitiesQuery.compile().sql);
+                // console.log(exploreCommunitiesQuery.compile().sql);
 
                 const exploreCommunities = await exploreCommunitiesQuery.execute();
 
@@ -159,7 +159,7 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string
             //top posts are somewhat immune and, so adding extra protection from that:
             //for a popular post there's 90% chance it will get downranked to 1 like so it doesn't stick around on top all the time
             //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.8 then 1 else 0 end)*(case when score < 50 and rand() >= 0.5 then 1 else 0 end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.9 then 1 else 10/(score-1) end)*(case when score < 50 and rand() >= 0.5 then 1 else 1/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         // .where('post.replyParent', 'is', null)
@@ -180,57 +180,6 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string
     // console.log(rankomized.compile().sql);
 
     return await rankomized.execute();
-}
-
-const getRankomizedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
-    console.log(`getting ranked posts with drops`);
-    const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
-
-    const dropChance = 0.5;
-    const dropQuery = `(case when score < 50 and rand() >= ${dropChance} then 1 else rand() end)`;
-    let innerSelect = ctx.db.selectFrom('post')
-        .select(({ fn, val, ref }) => [
-            //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-            //there's 50% chance for any post to get downranked to 1 like
-            'post.uri', 'post.author', 'post.indexedAt', userCommunity.prefix,
-            sql<string>`((score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank'),
-            sql<string>`((score-1)*${dropQuery}/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rankwithdrops')
-        ])
-        .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        .select(['postrank.score'])
-        // .where('post.replyParent', 'is', null)
-        .orderBy('rankwithdrops', 'desc');
-
-    if (expandPrefix && expandPrefix !== userCommunity.prefix) {
-        innerSelect = innerSelect.select(expandPrefix);
-    }
-
-    let ranked = ctx.db
-        .selectFrom([
-            innerSelect.as('a')
-        ])
-        .selectAll()
-        .limit(limit);
-
-    if (existingRank) {
-        ranked = ranked
-            .where('rank', '<', existingRank)
-    }
-
-    if (expandPrefix && expandCommunities && expandCommunities.length > 0) {
-        ranked = ranked
-            .where((eb) => eb.or([
-                eb(expandPrefix, 'in', expandCommunities),
-                eb(userCommunity.prefix, '=', userCommunity.community),
-            ]))
-    } else {
-        ranked = ranked
-            .where(userCommunity.prefix, '=', userCommunity.community)
-    }
-
-    console.log(ranked.compile().sql);
-
-    return await ranked.execute();
 }
 
 const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
@@ -275,7 +224,7 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
             .where(userCommunity.prefix, '=', userCommunity.community)
     }
 
-    console.log(ranked.compile().sql);
+    // console.log(ranked.compile().sql);
 
     return await ranked.execute();
 }
@@ -295,4 +244,4 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     }
 }
 
-export { getUserCommunity, getUserCommunities, getFirstPagePosts, getRankomizedPosts, getRankedPosts, CommunityRequestConfig }
+export { getUserCommunity, getUserCommunities, getFirstPagePosts, getRankedPosts, CommunityRequestConfig }

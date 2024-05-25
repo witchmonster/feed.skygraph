@@ -1,8 +1,8 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getRankomizedPosts } from '../common/communities'
-import { mixInPosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig } from '../common/communities'
+import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
 // max 15 chars
@@ -12,13 +12,15 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     console.log(`User ${userDid} from test_mynebulaplus feed`);
 
     let seed: number;
-    let existingRank;
+    let existingRank1;
+    let existingRank2;
     let existingfollowsCursor;
     if (params.cursor) {
-        const [passedSeed, rank, timestamp] = params.cursor.split('::')
-        existingRank = rank;
+        const [passedSeed, rank1, rank2, timestamp] = params.cursor.split('::')
+        existingRank1 = rank1;
+        existingRank2 = rank2;
         existingfollowsCursor = timestamp;
-        if (!passedSeed || !rank) {
+        if (!passedSeed || !rank1) {
             throw new InvalidRequestError('malformed cursor')
         }
         seed = +passedSeed;
@@ -26,7 +28,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         seed = new Date().getUTCMilliseconds();
     }
 
-    console.log(`${seed}::${existingRank}::${existingfollowsCursor}`);
+    console.log(`${seed}::${existingRank1}::${existingfollowsCursor}`);
 
     const communityConfig: CommunityRequestConfig = {
         mode: "constellation",
@@ -35,16 +37,19 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         topLikedLimit: 16,
         trustedFriendsLimit: 5
     };
-    let res;
-    let lastRank;
-    if (!existingRank) {
+    let res: any;
+    let lastRank1;
+    let lastRank2;
+    if (!existingRank1) {
         res = await getFirstPagePosts(ctx, params.limit * 2, userDid, communityConfig);
-        lastRank = 99999999;
+        lastRank1 = 99999999;
+        lastRank2 = 99999999;
     } else {
-        res = await getRankedPosts(ctx, existingRank, params.limit * 2, 3, userDid, communityConfig);
-        lastRank = res.at(-1)?.rank;
-        const res2: any = await getRankomizedPosts(ctx, existingRank, params.limit * 2, 3, userDid, communityConfig);
-        res = await mixInPosts(seed, 2, rateLimit(res), rateLimit(res2));
+        res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, userDid, communityConfig);
+        lastRank1 = res.at(-1).rank;
+        const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, userDid, communityConfig);
+        lastRank2 = res2.at(-1).rank;
+        res = await mergePosts(seed, 2, rateLimit(res), rateLimit(res2));
     }
 
     const shuffledPosts = shuffleRateLimitTrim(res, params.limit);
@@ -52,11 +57,14 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     const { followsCursor, resultPosts } = await mixInFollows(ctx, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
 
     const feed = resultPosts.map((row) => ({
-        post: row.uri,
+        post: row.uri
     }))
 
+    const cursor = `${seed}::${lastRank1}::${lastRank2}::${followsCursor}`;
+    console.log({ feed, cursor })
+
     return {
-        cursor: `${seed}::${lastRank}::${followsCursor}`,
+        cursor,
         feed,
     }
 }

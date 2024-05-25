@@ -42,7 +42,7 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number) {
     return rateLimitedRes.slice(0, limit);
 }
 
-const mixInPosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[], postsToMixIn: { author: string, uri: string }[]) => {
+const mergePosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[], postsToMixIn: { author: string, uri: string }[]) => {
     let i = 0;
     let j = 0;
     //never replace last post since it's used in ranking
@@ -67,4 +67,4 @@ const mixInPosts = async (seed: number, rate: number, originalPosts: { author: s
     return mixedInPosts;
 }
 
-export { shuffleArray, rateLimit, shuffleRateLimitTrim, mixInPosts }
+export { shuffleArray, rateLimit, shuffleRateLimitTrim, mergePosts }

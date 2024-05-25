@@ -24,6 +24,27 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
 
 const mixInFollows = async (ctx: AppContext, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
     let followsCursor;
+    if (follows && follows.length > 0) {
+        const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
+        const rateLimitedFollows = rateLimit(followsResponse, false);
+        let j = 0;
+        let i = 0;
+        while (i < posts.length && j < follows.length) {
+            if (i % 5 === seed % 5) {
+                posts[i] = rateLimitedFollows[j];
+                console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
+                j++;
+            } else {
+                console.log(`${i}=>original ${posts[i].uri}`)
+                i++;
+            }
+        }
+    }
+    return { followsCursor, resultPosts: posts.slice(0, limit) };
+}
+
+const mergeWithFollows = async (ctx: AppContext, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
+    let followsCursor;
     let resultPosts: { author: string, uri: string }[] = [];
     if (follows && follows.length > 0) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
