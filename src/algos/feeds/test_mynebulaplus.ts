@@ -46,9 +46,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
         lastRank2 = 99999999;
     } else {
         res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, userDid, communityConfig);
-        lastRank1 = res && res.at(-1).rank;
+        lastRank1 = res?.at(-1).rank;
         const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, userDid, { ...communityConfig, withExplore: false });
-        lastRank2 = res2 && res2.at(-1).rank;
+        lastRank2 = res2?.at(-1).rank;
         res = await mergePosts(seed, 2, rateLimit(res), rateLimit(res2));
     }
 
