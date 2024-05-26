@@ -1,7 +1,7 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, getUserCommunities, CommunityResponse } from '../common/test_communities'
+import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse, getUserCommunities } from '../common/test_communities'
 import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
 
@@ -43,7 +43,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
   const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
   if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, communityResponse);
+    res = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, communityResponseWithoutExplore);
     lastRank1 = 99999999;
     lastRank2 = 99999999;
   } else {
