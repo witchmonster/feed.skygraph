@@ -217,7 +217,7 @@ const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, g
             //there's 70% chance for any other reply to get downranked
             //there's 50% chance for any other post to get downranked
             // sql<string>`((score-1)*${downrankMostLiked}*${downrankAll}*rand(${seed / 2})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
-            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 10/(score-1) end)*rand(${seed / 2})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)

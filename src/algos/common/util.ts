@@ -30,7 +30,7 @@ function rateLimit(array: PostResult[] | undefined, randomize?: boolean): PostRe
             newArray.set(array[i].author, array[i]);
         }
     }
-    return Array.from(newArray.values());
+    return [...newArray.values()];
 }
 
 function shuffleRateLimitTrim(res: PostResult[], limit: number) {
@@ -38,11 +38,15 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number) {
 
     console.log(`total posts: ${res.length}`);
 
-    const rateLimitedRes = rateLimit(res, true);
+    try {
+        const rateLimitedRes = rateLimit(res, true);
+        console.log(`rate limited to: ${rateLimitedRes.length}`);
+        return rateLimitedRes.slice(0, limit);
+    } catch (err) {
+        console.log(`rate limit failed: ${err}`);
+        return res.slice(0, limit);
+    }
 
-    console.log(`rate limited to: ${rateLimitedRes.length}`);
-
-    return rateLimitedRes.slice(0, limit);
 }
 
 const mergePosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[] | undefined, postsToMixIn: { author: string, uri: string }[] | undefined) => {
@@ -64,7 +68,7 @@ const mergePosts = async (seed: number, rate: number, originalPosts: { author: s
                 // console.log(`${mixedInPosts.length}=>mixed in at [${j}]:${postsToMixIn[j].uri}`)
                 j++;
             } else {
-                mixedInPosts.push(originalPosts[j]);
+                mixedInPosts.push(originalPosts[i]);
                 // console.log(`${mixedInPosts.length}=>original ${originalPosts[i].uri}`)
                 i++;
             }
