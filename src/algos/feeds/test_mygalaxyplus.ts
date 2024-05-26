@@ -43,15 +43,17 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
   const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
   if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, communityResponseWithoutExplore);
+    res = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, false, communityResponseWithoutExplore);
     lastRank1 = 99999999;
+    const res2: any = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, true, communityResponse);
     lastRank2 = 99999999;
+    res = await mergePosts(seed, 3, rateLimit(res), rateLimit(res2));
   } else {
-    res = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, true, communityResponse);
+    res = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, false, false, communityResponseWithoutExplore);
     lastRank1 = res?.at(-1).rank;
-    const res2: any = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, false, communityResponseWithoutExplore);
+    const res2: any = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, true, true, communityResponse);
     lastRank2 = res2?.at(-1).rank;
-    res = await mergePosts(seed, 2, rateLimit(res), rateLimit(res2));
+    res = await mergePosts(seed, 3, rateLimit(res), rateLimit(res2));
   }
 
   const shuffledPosts = shuffleRateLimitTrim(res, params.limit);

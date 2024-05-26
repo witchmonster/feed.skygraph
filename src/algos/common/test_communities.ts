@@ -12,6 +12,7 @@ enum Prefixes {
 
 interface CommunityResponse {
     userCommunity: { community: string, prefix: any }
+    exploreCommunity: { community: string, prefix: any }
     topCommunitiesByLikes: { communities: string[], prefix: any }
     exploreCommunitiesByLikes: { communities: string[], prefix: any }
 }
@@ -43,8 +44,10 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
 
     console.log(communities);
 
-    const perfectCommunity = (communities && communities.filter(community => community.size > 3000 && community.size < 50000)[0])
-        ?? (communities && communities.filter(community => community.prefix === 's'))[0];
+    const largestCommunity = communities.reduce((p, c) => c.size > p.size ? c : p, communities[0]);
+    const min10kCommunities = communities.filter(community => community.size > 10000);
+    // pick the smallest out of 10k+ communities, if no 10k+ communities - choose the largest one
+    const perfectCommunity = min10kCommunities.length === 0 ? largestCommunity : min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
 
     console.log(perfectCommunity);
 
@@ -62,6 +65,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     let expandCommunityPrefix;
 
     const userHasCommunities = communitiesRes && communitiesRes.rows && communitiesRes.rows.length > 0;
+    const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
 
     let topLikedLimit;
     let trustedFriendsLimit;
@@ -77,15 +81,6 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' } : { community: 's574', prefix: 's' };
         topLikedCommunityPrefix = 'e';
         expandCommunityPrefix = 'e';
-        topLikedLimit = config?.topLikedLimit ?? 10;
-        trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
-    }
-
-    //currently unused
-    if (mode === "auto") {
-        userCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
-        topLikedCommunityPrefix = 'o';
-        expandCommunityPrefix = 'o';
         topLikedLimit = config?.topLikedLimit ?? 10;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
@@ -140,6 +135,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
 
                 const response = {
                     userCommunity,
+                    exploreCommunity,
                     topCommunitiesByLikes: {
                         communities: topCommunitiesByLikes,
                         prefix: topLikedCommunityPrefix
@@ -158,6 +154,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
 
         const response = {
             userCommunity,
+            exploreCommunity,
             topCommunitiesByLikes: {
                 communities: topCommunitiesByLikes,
                 prefix: topLikedCommunityPrefix
@@ -173,6 +170,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
 
     const response = {
         userCommunity,
+        exploreCommunity,
         topCommunitiesByLikes: {
             communities: [],
             prefix: topLikedCommunityPrefix
@@ -186,14 +184,18 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     return response;
 }
 
-const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, gravity: number, communityResponse: CommunityResponse) => {
+const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, gravity: number, withExplore: boolean, communityResponse: CommunityResponse) => {
     console.log(`-------------------- first page posts --------------------`);
-    const { userCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const lookupCommunities = (eb) => {
         const response = [
-            eb(userCommunity.prefix, '=', userCommunity.community),
+            eb(userCommunity.prefix, '=', userCommunity.community)
         ]
+
+        if (withExplore) {
+            response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
+        }
 
         if (topCommunitiesByLikes.communities.length > 0) {
             response.push(eb(topCommunitiesByLikes.prefix, 'in', topCommunitiesByLikes.communities))
@@ -230,17 +232,21 @@ const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, g
     return await rankomized.execute();
 }
 
-const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, skipReplies: boolean, communityResponse: CommunityResponse) => {
+const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, skipReplies: boolean, withExplore: boolean, communityResponse: CommunityResponse) => {
     console.log(`-------------------- ranked posts --------------------`);
 
-    const { userCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
-    const prefixes = [...new Set([userCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
+    const prefixes = [...new Set([userCommunity.prefix, exploreCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
 
     const lookupCommunities = (eb) => {
         const response = [
             eb(userCommunity.prefix, '=', userCommunity.community),
         ]
+
+        if (withExplore) {
+            response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
+        }
 
         if (topCommunitiesByLikes.communities.length > 0) {
             response.push(eb(topCommunitiesByLikes.prefix, 'in', topCommunitiesByLikes.communities))
