@@ -186,7 +186,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     return response;
 }
 
-const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number, communityResponse: CommunityResponse) => {
+const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, gravity: number, communityResponse: CommunityResponse) => {
     console.log(`-------------------- first page posts --------------------`);
     const { userCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
@@ -206,19 +206,22 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number
         return eb.or(response)
     };
 
+
     let rankomized = ctx.db
         .selectFrom('post')
         .selectAll()
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-            //top posts are somewhat immune and, so adding extra protection from that:
-            //for a popular post there's 90% chance it will get downranked to 1 like so it doesn't stick around on top all the time
+            //top posts are somewhat immune and, so adding downranking for that
+            //for a popular post there's 80% chance it will get downranked to 1 like so it doesn't stick around on top all the time
+            //there's 70% chance for any other reply to get downranked
             //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.3 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            // sql<string>`((score-1)*${downrankMostLiked}*${downrankAll}*rand(${seed / 2})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 10/(score-1) end)*(case when score < 50 and rand(${seed}) >= 0.5 then 1 else 1/(score-1) end)*rand(${seed / 2})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
-        // .where('post.replyParent', 'is', null)
+        .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc')
         .limit(limit);
 
@@ -229,9 +232,6 @@ const getFirstPagePosts = async (ctx: AppContext, limit: number, gravity: number
 
 const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, skipReplies: boolean, communityResponse: CommunityResponse) => {
     console.log(`-------------------- ranked posts --------------------`);
-    if (existingRank === '0') {
-        return undefined;
-    }
 
     const { userCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
@@ -278,7 +278,7 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
 
     if (existingRank) {
         ranked = ranked
-            .where('rank', '<', existingRank)
+            .where('rank', '<=', existingRank)
     }
 
     // console.log(ranked.compile().sql);
