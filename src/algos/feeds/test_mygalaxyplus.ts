@@ -48,7 +48,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
   const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
   if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, { withExplore: false, seed, gravity: 3, limit: params.limit * 10 }, communityResponse);
+    res = await getFirstPagePosts(ctx, { withExplore: true, seed, gravity: 3, limit: params.limit * 10 }, communityResponse);
     lastRank1 = 99999999;
     lastRank2 = 99999999;
     //turn off
