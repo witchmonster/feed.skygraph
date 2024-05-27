@@ -224,7 +224,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         return eb.or(response)
     };
 
-
+    // const withinLastDay: string = sql`DATE_SUB(now(), INTERVAL 1 DAY)`;
     let rankomized = ctx.db
         .selectFrom('post')
         .selectAll()
@@ -241,6 +241,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         .where('post.replyParent', 'is', null)
         //it's first page, so given the randomizer above we really want to set the minimum quality here
         .where('postrank.score', '>=', 5)
+        .where('post.indexedAt', '>', (sql`DATE_SUB(now(), INTERVAL 1 DAY)` as any))
         .orderBy('rank', 'desc')
         .limit(limit);
 
