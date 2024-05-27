@@ -4,12 +4,16 @@ import { AppContext } from '../../config'
 import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse, getUserCommunities } from '../common/test_communities'
 import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
 import { mixInFollows } from '../common/follows'
+import { recordUsage } from '../common/stats'
 
 // max 15 chars
 export const shortname = 'test'
+const feedName = "test_mygalaxyplus"
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
-  console.log(`User ${userDid} from test_mynebulaplus feed`);
+  console.log(`User ${userDid} from ${feedName} feed`);
+
+  await recordUsage(ctx, userDid, shortname, params.limit);
 
   let seed: number;
   let existingRank1;
@@ -43,15 +47,13 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
   const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
   const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
   if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, false, communityResponseWithoutExplore);
+    res = await getFirstPagePosts(ctx, { withExplore: true, seed, gravity: 3, limit: params.limit * 3 }, communityResponseWithoutExplore);
     lastRank1 = 99999999;
-    const res2: any = await getFirstPagePosts(ctx, seed, params.limit * 2, 3, true, communityResponse);
     lastRank2 = 99999999;
-    res = await mergePosts(seed, 5, rateLimit(res), rateLimit(res2));
   } else {
-    res = await getRankedPosts(ctx, existingRank2, params.limit * 2, 4, false, false, communityResponseWithoutExplore);
+    res = await getRankedPosts(ctx, { existingRank: existingRank1, withExplore: false, skipReplies: false, gravity: 4, limit: params.limit * 2 }, communityResponseWithoutExplore);
     lastRank1 = res?.at(-1).rank;
-    const res2: any = await getRankedPosts(ctx, existingRank1, params.limit * 2, 3, true, true, communityResponse);
+    const res2: any = await getRankedPosts(ctx, { existingRank: existingRank2, withExplore: true, skipReplies: true, gravity: 3, limit: params.limit * 2 }, communityResponse);
     lastRank2 = res2?.at(-1).rank;
     res = await mergePosts(seed, 5, rateLimit(res), rateLimit(res2));
   }

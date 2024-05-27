@@ -4,7 +4,8 @@ export type DatabaseSchema = {
   community: Community
   likescore: LikeScore
   postrank: PostRank
-  sub_state: SubState
+  sub_state: SubState,
+  feed_usage: Usage
 }
 
 export type Post = {
@@ -21,6 +22,14 @@ export type Post = {
   g?: string
   e?: string
   o?: string
+}
+
+export type Usage = {
+  user: string,
+  feed: string,
+  limit: number,
+  refreshcount: number,
+  lastUpdated: string
 }
 
 export type LikeScore = {

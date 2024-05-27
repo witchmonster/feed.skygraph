@@ -201,6 +201,7 @@ migrations['007'] = {
   DELETE p, r FROM post p
   JOIN postrank r on p.uri = r.uri
   WHERE (r.score <= 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
+  OR (r.score <= 5 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 12 HOUR))
   OR p.indexedAt < DATE_SUB(NOW(), INTERVAL 3 DAY)`.execute(db);
   }
 };
@@ -272,4 +273,40 @@ migrations['008'] = {
       console.log(`Skipping index idx_nebulas_to_post, already exists`);
     }
   }
+};
+
+migrations['009'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .createTable('feed_usage')
+      .ifNotExists()
+      .addColumn('user', 'varchar(255)', (col) => col.notNull())
+      .addColumn('feed', 'varchar(16)', (col) => col.notNull())
+      .addColumn('limit', 'integer', (col) => col.notNull())
+      .addColumn('refreshcount', 'integer', (col) => col.notNull())
+      .addColumn('lastUpdated', 'varchar(255)', (col) => col.notNull())
+      .addPrimaryKeyConstraint('primary_key', ['user', 'feed', 'limit'])
+      .execute();
+    try {
+      await db.schema
+        .createIndex('idx_feed_usage_to_refreshcount')
+        .on('feed_usage')
+        .column('refreshcount')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_usage_to_refreshcount, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_feed_usage_to_lastupdated')
+        .on('feed_usage')
+        .column('lastUpdated')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_usage_to_lastupdated, already exists`);
+    }
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.dropTable('feed_usage').execute()
+  },
 };

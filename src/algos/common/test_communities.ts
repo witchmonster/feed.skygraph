@@ -25,6 +25,21 @@ interface CommunityRequestConfig {
     trustedFriendsLimit?: number
 }
 
+interface FirstPageRequestConfig {
+    withExplore: boolean,
+    seed: number,
+    gravity: number,
+    limit: number,
+}
+
+interface RankedRequestConfig {
+    withExplore: boolean,
+    skipReplies: boolean,
+    existingRank: any,
+    gravity: number,
+    limit: number,
+}
+
 const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
     console.log("auto-picking user community")
     const communityCodes: string[] = [
@@ -184,8 +199,9 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     return response;
 }
 
-const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, gravity: number, withExplore: boolean, communityResponse: CommunityResponse) => {
+const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig, communityResponse: CommunityResponse) => {
     console.log(`-------------------- first page posts --------------------`);
+    const { withExplore, seed, gravity, limit } = config;
     const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const lookupCommunities = (eb) => {
@@ -218,12 +234,13 @@ const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, g
             //for a popular post there's 80% chance it will get downranked to 1 like so it doesn't stick around on top all the time
             //there's 70% chance for any other reply to get downranked
             //there's 50% chance for any other post to get downranked
-            // sql<string>`((score-1)*${downrankMostLiked}*${downrankAll}*rand(${seed / 2})/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
-            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 10/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when score < 50 and rand() >= 0.5 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
         .where('post.replyParent', 'is', null)
+        //it's first page, so given the randomizer above we really want to set the minimum quality here
+        .where('postrank.score', '>=', 5)
         .orderBy('rank', 'desc')
         .limit(limit);
 
@@ -232,9 +249,9 @@ const getFirstPagePosts = async (ctx: AppContext, seed: number, limit: number, g
     return await rankomized.execute();
 }
 
-const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, skipReplies: boolean, withExplore: boolean, communityResponse: CommunityResponse) => {
+const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, communityResponse: CommunityResponse) => {
     console.log(`-------------------- ranked posts --------------------`);
-
+    const { withExplore, skipReplies, existingRank, gravity, limit } = config;
     const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const prefixes = [...new Set([userCommunity.prefix, exploreCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
@@ -292,4 +309,4 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
     return await ranked.execute();
 }
 
-export { getUserCommunities, getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse }
+export { getUserCommunities, getFirstPagePosts, getRankedPosts, FirstPageRequestConfig, CommunityRequestConfig, CommunityResponse }
