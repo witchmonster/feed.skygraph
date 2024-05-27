@@ -22,7 +22,7 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
     return await chronological.execute();
 }
 
-const mixInFollows = async (ctx: AppContext, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
+const mixInFollows = async (ctx: AppContext, followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
     let followsCursor;
     if (follows && follows.length > 0) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
@@ -30,7 +30,7 @@ const mixInFollows = async (ctx: AppContext, existingCursor: string, limit: numb
         let j = 0;
         let i = 0;
         while (i < posts.length && j < follows.length) {
-            if (i % 5 === seed % 5) {
+            if (i % followsRate === seed % followsRate) {
                 posts[i] = rateLimitedFollows[j];
                 console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
                 j++;
