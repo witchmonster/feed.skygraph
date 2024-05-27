@@ -231,14 +231,13 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
             //top posts are somewhat immune and, so adding downranking for that
-            //for a popular post there's 80% chance it will get downranked to 1 like so it doesn't stick around on top all the time
-            //there's 70% chance for any other reply to get downranked
-            //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when score < 50 and rand() >= 0.5 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            //for a popular post there's 80% chance it will get dropped so it doesn't stick around on top all the time
+            //there's additional 50% chance for replies to get dropped
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when 'post.replyParent' is not null and rand() >= 0.5 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
-        .where('post.replyParent', 'is', null)
+        // .where('post.replyParent', 'is', null)
         //it's first page, so given the randomizer above we really want to set the minimum quality here
         .where('postrank.score', '>=', 5)
         .where('post.indexedAt', '>', (sql`DATE_SUB(now(), INTERVAL 1 DAY)` as any))
