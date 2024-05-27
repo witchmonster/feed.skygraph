@@ -11,9 +11,10 @@ enum Prefixes {
 }
 
 interface CommunityResponse {
-    whereClause: any,
-    userCommunity: { community: string, prefix: any },
-    expandCommunities?: string[]
+    userCommunity: { community: string, prefix: any }
+    exploreCommunity: { community: string, prefix: any }
+    topCommunitiesByLikes: { communities: string[], prefix: any }
+    exploreCommunitiesByLikes: { communities: string[], prefix: any }
 }
 
 interface CommunityRequestConfig {
@@ -22,6 +23,21 @@ interface CommunityRequestConfig {
     withExplore?: boolean
     topLikedLimit?: number
     trustedFriendsLimit?: number
+}
+
+interface FirstPageRequestConfig {
+    withExplore: boolean,
+    seed: number,
+    gravity: number,
+    limit: number,
+}
+
+interface RankedRequestConfig {
+    withExplore: boolean,
+    skipReplies: boolean,
+    existingRank: any,
+    gravity: number,
+    limit: number,
 }
 
 const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
@@ -43,64 +59,61 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
 
     console.log(communities);
 
-    const perfectCommunity = (communities && communities.filter(community => community.size > 3000 && community.size < 50000)[0])
-        ?? (communities && communities.filter(community => community.prefix === 's'))[0];
+    const largestCommunity = communities.reduce((p, c) => c.size > p.size ? c : p, communities[0]);
+    const min10kCommunities = communities.filter(community => community.size > 10000);
+    // pick the smallest out of 10k+ communities, if no 10k+ communities - choose the largest one
+    const perfectCommunity = min10kCommunities.length === 0 ? largestCommunity : min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
 
     console.log(perfectCommunity);
 
     return perfectCommunity;
 }
 
-const getUserCommunity = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
-    console.log("getting user community");
+const getUserCommunities = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
+    // console.log("getting user community");
     const mode = config?.mode ?? "auto";
     userDid = userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(ctx.db);
 
     let userCommunity;
+    let topLikedCommunityPrefix;
     let expandCommunityPrefix;
 
     const userHasCommunities = communitiesRes && communitiesRes.rows && communitiesRes.rows.length > 0;
+    const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
 
     let topLikedLimit;
     let trustedFriendsLimit;
     if (mode === "constellation") {
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.o, prefix: 'o' } : { community: 's574', prefix: 's' };
-        expandCommunityPrefix = "o"
-        topLikedLimit = config?.topLikedLimit ?? 16;
+        topLikedCommunityPrefix = 'o';
+        expandCommunityPrefix = 'o';
+        topLikedLimit = config?.topLikedLimit ?? 10;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
     if (mode === "nebula") {
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' } : { community: 's574', prefix: 's' };
+        topLikedCommunityPrefix = 'e';
         expandCommunityPrefix = 'e';
-        topLikedLimit = config?.topLikedLimit ?? 8;
-        trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
-    }
-
-    //currently unused
-    if (mode === "auto") {
-        userCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
-        expandCommunityPrefix = 'o';
-        topLikedLimit = config?.topLikedLimit ?? 16;
+        topLikedLimit = config?.topLikedLimit ?? 10;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
     // console.log({ userCommunity, expandCommunityPrefix, topLikedLimit, trustedFriendsLimit })
 
-    const userPostDotCommunityPrefix: any = `post.${userCommunity.prefix}`;
     const userDidToCommunityDotPrefix: any = `did_to_community.${userCommunity.prefix}`;
-    const expandPostDotCommunityPrefix: any = `post.${expandCommunityPrefix}`;
+    const topLikedCommunityDotPrefix: any = `did_to_community.${topLikedCommunityPrefix}`;
     const expandDidToCommunityDotPrefix: any = `did_to_community.${expandCommunityPrefix}`;
 
     if (config?.withTopLiked) {
         const topLikedCommunitiesQuery = ctx.db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
-            .select([expandDidToCommunityDotPrefix, 'likescore.subject'])
+            .select([topLikedCommunityDotPrefix, 'likescore.subject'])
             //choose communities by poasters user liked most
             .where('likescore.author', '=', userDid)
             .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
-            .groupBy(expandDidToCommunityDotPrefix)
+            .groupBy(topLikedCommunityDotPrefix)
             .orderBy(sql`sum(likescore.score)`, 'desc')
             .limit(topLikedLimit);
 
@@ -108,12 +121,12 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
 
         const topLikedCommunities = await topLikedCommunitiesQuery.execute();
 
-        const topCommunitiesByLikes: string[] = topLikedCommunities.filter(n => n[expandCommunityPrefix] !== undefined).map(n => n[expandCommunityPrefix]) as any;
+        const topCommunitiesByLikes: string[] = topLikedCommunities.filter(n => n[topLikedCommunityPrefix] !== undefined).map(n => n[topLikedCommunityPrefix]) as any;
 
         // console.log("top liked communities: " + topCommunitiesByLikes)
 
         if (config?.withExplore && topCommunitiesByLikes.length < topLikedLimit) {
-            if (topLikedCommunities && topLikedCommunities.length > 0) {
+            if (topCommunitiesByLikes.length > 0) {
                 const exploreCommunitiesQuery = ctx.db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
                     .select([expandDidToCommunityDotPrefix])
@@ -121,7 +134,8 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
                     .where('likescore.author', 'in', topLikedCommunities.slice(0, trustedFriendsLimit).map(n => n.subject))
                     //exclude already seen communities
                     .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
-                    .where(expandDidToCommunityDotPrefix, 'not in', topCommunitiesByLikes)
+                    .where(topLikedCommunityDotPrefix, 'not in', topCommunitiesByLikes)
+                    //choose top liked communities by friends
                     .groupBy(expandDidToCommunityDotPrefix)
                     .orderBy(sql`sum(likescore.score)`, 'desc')
                     .limit(topLikedLimit - topCommunitiesByLikes.length);
@@ -134,75 +148,147 @@ const getUserCommunity = async (ctx: AppContext, userDid: string, config?: Commu
 
                 // console.log("explore communities: " + exploreCommunitiesByLikes)
 
-                console.log({ userPostDotCommunityPrefix, userCommunity, expandCommunityPrefix, topCommunitiesByLikes, exploreCommunitiesByLikes })
-                return { whereClause: expandPostDotCommunityPrefix, userCommunity, expandCommunities: [...topCommunitiesByLikes, ...exploreCommunitiesByLikes] };
+                const response = {
+                    userCommunity,
+                    exploreCommunity,
+                    topCommunitiesByLikes: {
+                        communities: topCommunitiesByLikes,
+                        prefix: topLikedCommunityPrefix
+                    },
+                    exploreCommunitiesByLikes: {
+                        communities: exploreCommunitiesByLikes,
+                        prefix: expandCommunityPrefix
+                    }
+                }
+                console.log(response)
+                return response;
+            } else {
+                //autopick community
             }
         }
 
-        console.log({ userPostDotCommunityPrefix, userCommunity, expandCommunityPrefix, topCommunitiesByLikes, exploreCommunitiesByLikes: [] })
-        return { whereClause: userPostDotCommunityPrefix, userCommunity, expandCommunities: topCommunitiesByLikes };
+        const response = {
+            userCommunity,
+            exploreCommunity,
+            topCommunitiesByLikes: {
+                communities: topCommunitiesByLikes,
+                prefix: topLikedCommunityPrefix
+            },
+            exploreCommunitiesByLikes: {
+                communities: [],
+                prefix: expandCommunityPrefix
+            }
+        }
+        console.log(response)
+        return response;
     }
 
-    console.log({ userPostDotCommunityPrefix, userCommunity, expandCommunityPrefix, topCommunitiesByLikes: [], exploreCommunitiesByLikes: [] })
-    return { whereClause: userPostDotCommunityPrefix, userCommunity };
+    const response = {
+        userCommunity,
+        exploreCommunity,
+        topCommunitiesByLikes: {
+            communities: [],
+            prefix: topLikedCommunityPrefix
+        },
+        exploreCommunitiesByLikes: {
+            communities: [],
+            prefix: expandCommunityPrefix
+        }
+    }
+    console.log(response)
+    return response;
 }
 
-const getFirstPagePosts = async (ctx: AppContext, limit: number, userDid: string, config: CommunityRequestConfig) => {
-    // console.log(`getting first page posts`);
-    const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
+const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig, communityResponse: CommunityResponse) => {
+    console.log(`-------------------- first page posts --------------------`);
+    const { withExplore, seed, gravity, limit } = config;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
+
+    const lookupCommunities = (eb) => {
+        const response = [
+            eb(userCommunity.prefix, '=', userCommunity.community)
+        ]
+
+        if (withExplore) {
+            response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
+        }
+
+        if (topCommunitiesByLikes.communities.length > 0) {
+            response.push(eb(topCommunitiesByLikes.prefix, 'in', topCommunitiesByLikes.communities))
+        }
+
+        if (exploreCommunitiesByLikes.communities.length > 0) {
+            response.push(eb(exploreCommunitiesByLikes.prefix, 'in', exploreCommunitiesByLikes.communities))
+        }
+
+        return eb.or(response)
+    };
+
 
     let rankomized = ctx.db
         .selectFrom('post')
         .selectAll()
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-            //top posts are somewhat immune and, so adding extra protection from that:
-            //for a popular post there's 90% chance it will get downranked to 1 like so it doesn't stick around on top all the time
+            //top posts are somewhat immune and, so adding downranking for that
+            //for a popular post there's 80% chance it will get downranked to 1 like so it doesn't stick around on top all the time
+            //there's 70% chance for any other reply to get downranked
             //there's 50% chance for any other post to get downranked
-            sql<string>`((score-1)*(case when score >= 50 and rand() >= 0.8 then 1 else 10/(score-1) end)*(case when score < 50 and rand() >= 0.3 then 1 else 1/(score-1) end)*rand()/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when score < 50 and rand() >= 0.5 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        // .where('post.replyParent', 'is', null)
+        .where(lookupCommunities)
+        .where('post.replyParent', 'is', null)
+        //it's first page, so given the randomizer above we really want to set the minimum quality here
+        .where('postrank.score', '>=', 5)
         .orderBy('rank', 'desc')
         .limit(limit);
-
-    if (expandPrefix && expandCommunities && expandCommunities.length > 0) {
-        rankomized = rankomized
-            .where((eb) => eb.or([
-                eb(expandPrefix, 'in', expandCommunities),
-                eb(userCommunity.prefix, '=', userCommunity.community),
-            ]))
-    } else {
-        rankomized = rankomized
-            .where(userCommunity.prefix, '=', userCommunity.community)
-    }
 
     // console.log(rankomized.compile().sql);
 
     return await rankomized.execute();
 }
 
-const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number, gravity: number, userDid: string, config: CommunityRequestConfig) => {
-    // console.log(`getting ranked posts`);
-    if (existingRank === '0') {
-        return undefined;
-    }
+const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, communityResponse: CommunityResponse) => {
+    console.log(`-------------------- ranked posts --------------------`);
+    const { withExplore, skipReplies, existingRank, gravity, limit } = config;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
-    const { userCommunity, expandPrefix, expandCommunities } = await getUserCommunities(ctx, userDid, config);
+    const prefixes = [...new Set([userCommunity.prefix, exploreCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
+
+    const lookupCommunities = (eb) => {
+        const response = [
+            eb(userCommunity.prefix, '=', userCommunity.community),
+        ]
+
+        if (withExplore) {
+            response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
+        }
+
+        if (topCommunitiesByLikes.communities.length > 0) {
+            response.push(eb(topCommunitiesByLikes.prefix, 'in', topCommunitiesByLikes.communities))
+        }
+
+        if (exploreCommunitiesByLikes.communities.length > 0) {
+            response.push(eb(exploreCommunitiesByLikes.prefix, 'in', exploreCommunitiesByLikes.communities))
+        }
+
+        return eb.or(response)
+    };
 
     let innerSelect = ctx.db.selectFrom('post')
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-            'post.uri', 'post.author', 'post.indexedAt', userCommunity.prefix,
+            'post.uri', 'post.author', 'post.indexedAt', ...prefixes,
             sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .select(['postrank.score'])
-        // .where('post.replyParent', 'is', null)
         .orderBy('rank', 'desc');
 
-    if (expandPrefix && expandPrefix !== userCommunity.prefix) {
-        innerSelect = innerSelect.select(expandPrefix);
+    if (skipReplies) {
+        innerSelect = innerSelect
+            .where('post.replyParent', 'is', null)
     }
 
     let ranked = ctx.db
@@ -210,42 +296,17 @@ const getRankedPosts = async (ctx: AppContext, existingRank: any, limit: number,
             innerSelect.as('a')
         ])
         .selectAll()
+        .where(lookupCommunities)
         .limit(limit);
 
     if (existingRank) {
         ranked = ranked
-            .where('rank', '<', existingRank)
+            .where('rank', '<=', existingRank)
     }
 
-    if (expandPrefix && expandCommunities && expandCommunities.length > 0) {
-        ranked = ranked
-            .where((eb) => eb.or([
-                eb(expandPrefix, 'in', expandCommunities),
-                eb(userCommunity.prefix, '=', userCommunity.community),
-            ]))
-    } else {
-        ranked = ranked
-            .where(userCommunity.prefix, '=', userCommunity.community)
-    }
-
-    console.log(ranked.compile().sql);
+    // console.log(ranked.compile().sql);
 
     return await ranked.execute();
 }
 
-
-
-const getUserCommunities = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<{ userCommunity: { community: string, prefix: any }, expandPrefix: any, expandCommunities?: string[] }> => {
-    const { whereClause, userCommunity, expandCommunities } = await getUserCommunity(ctx, userDid, config);
-    //hack to avoid sql error
-    //todo fix it later
-    if (expandCommunities && expandCommunities.length > 0) {
-        const expandPrefix = expandCommunities[0].substring(0, 1);
-        return { userCommunity, expandPrefix, expandCommunities };
-    } else {
-
-        return { userCommunity, expandPrefix: 'o' };
-    }
-}
-
-export { getUserCommunity, getUserCommunities, getFirstPagePosts, getRankedPosts, CommunityRequestConfig }
+export { getUserCommunities, getFirstPagePosts, getRankedPosts, FirstPageRequestConfig, CommunityRequestConfig, CommunityResponse }
