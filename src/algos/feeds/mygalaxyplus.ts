@@ -51,7 +51,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     res = await getFirstPagePosts(ctx, { withExplore: false, seed, gravity: 3, limit: params.limit * 3 }, communityResponse);
     lastRank1 = 99999999;
     lastRank2 = 99999999;
-    followsRate = 10;
+    //turn off
+    followsRate = params.limit;
   } else {
     res = await getRankedPosts(ctx, { existingRank: existingRank1, withExplore: false, skipReplies: false, gravity: 4, limit: params.limit * 2 }, communityResponseWithoutExplore);
     lastRank1 = res?.at(-1).rank;
