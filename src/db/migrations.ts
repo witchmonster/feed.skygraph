@@ -196,12 +196,12 @@ migrations['007'] = {
   async up(db: Database) {
     await sql`CREATE EVENT if not exists
     ClearPosts
-  ON SCHEDULE EVERY 1 DAY
+  ON SCHEDULE EVERY 12 HOUR
   DO
   DELETE p, r FROM post p
   JOIN postrank r on p.uri = r.uri
-  WHERE (r.score <= 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
-  OR (r.score <= 5 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 12 HOUR))
+  WHERE (r.score < 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
+  OR (r.score < 5 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 12 HOUR))
   OR p.indexedAt < DATE_SUB(NOW(), INTERVAL 3 DAY)`.execute(db);
   }
 };
