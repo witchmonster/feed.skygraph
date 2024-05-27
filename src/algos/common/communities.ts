@@ -232,8 +232,8 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
             //top posts are somewhat immune and, so adding downranking for that
             //for a popular post there's 80% chance it will get dropped so it doesn't stick around on top all the time
-            //there's additional 50% chance for replies to get dropped
-            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when 'post.replyParent' is not null and rand() >= 0.5 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            //there's additional 80% chance for replies to get dropped
+            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when 'post.replyParent' is not null and rand() >= 0.2 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
