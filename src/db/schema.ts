@@ -29,7 +29,8 @@ export type Usage = {
   feed: string,
   limit: number,
   refreshcount: number,
-  lastUpdated: string
+  lastUpdated: string,
+  last_post_output?: number,
 }
 
 export type LikeScore = {

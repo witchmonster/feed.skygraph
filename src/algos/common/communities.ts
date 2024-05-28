@@ -30,6 +30,8 @@ interface FirstPageRequestConfig {
     seed: number,
     gravity: number,
     limit: number,
+    minQuality?: number,
+    noReplies?: boolean
 }
 
 interface RankedRequestConfig {
@@ -60,11 +62,26 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
     console.log(communities);
 
     const largestCommunity = communities.reduce((p, c) => c.size > p.size ? c : p, communities[0]);
-    const min10kCommunities = communities.filter(community => community.size > 10000);
-    // pick the smallest out of 10k+ communities, if no 10k+ communities - choose the largest one
-    const perfectCommunity = min10kCommunities.length === 0 ? largestCommunity : min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
+    const min50kCommunities = communities.filter(community => community.size > 50000);
+    const min10kCommunities = communities.filter(community => community.size > 10000 && community.size < 50000);
+    const min3kCommunities = communities.filter(community => community.size > 3000 && community.size < 10000);
+    const max3kCommunities = communities.filter(community => community.size < 3000);
+    //smallest of 10k+
+    const sweetSpotCommunity = min10kCommunities[0] && min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
+    //largest of 3k+
+    const under3kSweetSpotCommunity = min3kCommunities[0] && min3kCommunities.reduce((p, c) => c.size > p.size ? c : p, min3kCommunities[0]);
+    //largest of smol
+    const backupSweetSpotCommunity = max3kCommunities[0] && max3kCommunities.reduce((p, c) => c.size > p.size ? c : p, max3kCommunities[0]);
+    //smallest of 50k+ (those are too large, but better than picking 250+ gigacluster)
+    const lesserEvilCommunity = min50kCommunities[0] && min50kCommunities.reduce((p, c) => c.size < p.size ? c : p, min50kCommunities[0]);
 
-    console.log(perfectCommunity);
+    const perfectCommunity = sweetSpotCommunity ?? under3kSweetSpotCommunity ?? backupSweetSpotCommunity ?? lesserEvilCommunity ?? largestCommunity;
+
+    console.log(`Auto-picked community: ${perfectCommunity.community}:${perfectCommunity.size}`);
+    console.log(`Backup #1: ${under3kSweetSpotCommunity?.community}:${under3kSweetSpotCommunity?.size}`);
+    console.log(`Backup #2: ${backupSweetSpotCommunity?.community}:${backupSweetSpotCommunity?.size}`);
+    console.log(`Backup #3: ${lesserEvilCommunity?.community}:${lesserEvilCommunity?.size}`);
+    console.log(`Backup #4: ${largestCommunity.community}:${largestCommunity.size}`);
 
     return perfectCommunity;
 }
@@ -201,7 +218,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
 
 const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig, communityResponse: CommunityResponse) => {
     console.log(`-------------------- first page posts --------------------`);
-    const { withExplore, seed, gravity, limit } = config;
+    const { withExplore, seed, gravity, limit, minQuality, noReplies } = config;
     const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const lookupCommunities = (eb) => {
@@ -225,7 +242,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
     };
 
     // const withinLastDay: string = sql`DATE_SUB(now(), INTERVAL 1 DAY)`;
-    let rankomized = ctx.db
+    let firstPageQuery = ctx.db
         .selectFrom('post')
         .selectAll()
         .select(({ fn, val, ref }) => [
@@ -237,16 +254,23 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
-        // .where('post.replyParent', 'is', null)
-        //it's first page, so given the randomizer above we really want to set the minimum quality here
-        .where('postrank.score', '>=', 5)
         .where('post.indexedAt', '>', (sql`DATE_SUB(now(), INTERVAL 1 DAY)` as any))
         .orderBy('rank', 'desc')
         .limit(limit);
 
+    if (minQuality) {
+        firstPageQuery = firstPageQuery
+            .where('postrank.score', '>=', minQuality)
+
+    }
+    if (noReplies) {
+        firstPageQuery = firstPageQuery
+            .where('post.replyParent', 'is', null)
+    }
+
     // console.log(rankomized.compile().sql);
 
-    return await rankomized.execute();
+    return await firstPageQuery.execute();
 }
 
 const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, communityResponse: CommunityResponse) => {

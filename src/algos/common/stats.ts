@@ -9,10 +9,9 @@ const recordUsage = async (ctx: AppContext, userDid: string, feedName: string, l
         .where('feed_usage.limit', '=', limit)
         .executeTakeFirst();
 
-    console.log(`result: ${usage}`);
+    // console.log(`result: ${usage}`);
 
     if (usage) {
-        console.log('updating');
         await ctx.db.updateTable('feed_usage')
             .set({
                 refreshcount: usage.refreshcount + 1,
@@ -38,4 +37,15 @@ const recordUsage = async (ctx: AppContext, userDid: string, feedName: string, l
     }
 }
 
-export { recordUsage }
+const recordPostOutput = async (ctx: AppContext, userDid: string, feedName: string, limit: number, postOutput: number) => {
+    await ctx.db.updateTable('feed_usage')
+        .set({
+            last_post_output: postOutput
+        })
+        .where('feed_usage.user', '=', userDid)
+        .where('feed_usage.feed', '=', feedName)
+        .where('feed_usage.limit', '=', limit)
+        .execute();
+}
+
+export { recordUsage, recordPostOutput }

@@ -26,17 +26,17 @@ const mixInFollows = async (ctx: AppContext, followsRate: number, existingCursor
     let followsCursor;
     if (follows && follows.length > 0) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
-        const rateLimitedFollows = rateLimit(followsResponse, false);
+        const rateLimitedFollows = rateLimit(followsResponse, false, seed);
         let j = 0;
         let i = 0;
         while (i < posts.length && j < follows.length) {
             if (i % followsRate === seed % followsRate) {
                 posts[i] = rateLimitedFollows[j];
-                console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
+                // console.log(`${i}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
                 j++;
                 i++;
             } else {
-                console.log(`${i}=>original ${posts[i].uri}`)
+                // console.log(`${i}=>original ${posts[i].uri}`)
                 i++;
             }
         }
@@ -44,35 +44,32 @@ const mixInFollows = async (ctx: AppContext, followsRate: number, existingCursor
     return { followsCursor, resultPosts: posts.slice(0, limit) };
 }
 
-const mergeWithFollows = async (ctx: AppContext, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
+const mergeWithFollows = async (ctx: AppContext, followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
     let followsCursor;
     let resultPosts: { author: string, uri: string }[] = [];
     if (follows && follows.length > 0) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
-        const rateLimitedFollows = rateLimit(followsResponse, false);
+        const rateLimitedFollows = rateLimit(followsResponse, false, seed);
         let j = 0;
         let i = 0;
         while (i < posts.length && j < follows.length && resultPosts.length < limit) {
-            if (posts[i].author === posts[j].author) {
-                resultPosts.push(posts[j]);
-                console.log(`${resultPosts.length}=>original ${posts[i].uri}`)
-                i++;
-            } else {
-                if (resultPosts.length % 4 === seed % 4) {
+            if (resultPosts.length % followsRate === seed % followsRate) {
+                //don't add duplicate posts
+                if (posts.indexOf(rateLimitedFollows[j]) === -1) {
+                    // console.log(`${resultPosts.length}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
                     resultPosts.push(rateLimitedFollows[j]);
-                    console.log(`${resultPosts.length}=>follows at [${j}]:${rateLimitedFollows[j].uri}`)
-                    j++;
-                } else {
-                    resultPosts.push(posts[j]);
-                    console.log(`${resultPosts.length}=>original ${posts[i].uri}`)
-                    i++;
                 }
+                j++;
+            } else {
+                // console.log(`${resultPosts.length}=>original ${posts[i].uri}`)
+                resultPosts.push(posts[i]);
+                i++;
             }
         }
     } else {
         resultPosts = posts.slice(0, limit);
     }
-    return { followsCursor, resultPosts };
+    return { followsCursor, resultPosts: resultPosts.slice(0, limit) };
 }
 
-export { mixInFollows }
+export { mixInFollows, mergeWithFollows }

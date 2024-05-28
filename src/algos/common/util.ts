@@ -14,16 +14,16 @@ function shuffleArray(array: any) {
     }
 }
 
-function rateLimit(array: PostResult[] | undefined, randomize?: boolean): PostResult[] {
+function rateLimit(array: PostResult[] | undefined, randomize: boolean, seed: number): PostResult[] {
     if (!array) {
         return [];
     }
     const newArray: Map<string, PostResult> = new Map();
     for (var i = 0; i < array.length; i++) {
         if (newArray.get(array[i].author)) {
-            //random chance to overwrite the post with a different one
-            // to give each post a chance every refresh
-            if (randomize && Math.random() >= 0.8) {
+            // every 3 posts random chance to overwrite the post with a different one if it's a duplicate
+            // should give each post a chance every refresh
+            if (randomize && i % 3 === seed % 3 && Math.random() > 0.5) {
                 newArray.set(array[i].author, array[i]);
             }
         } else {
@@ -33,13 +33,13 @@ function rateLimit(array: PostResult[] | undefined, randomize?: boolean): PostRe
     return [...newArray.values()];
 }
 
-function shuffleRateLimitTrim(res: PostResult[], limit: number) {
+function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number) {
     shuffleArray(res);
 
     console.log(`total posts: ${res.length}`);
 
     try {
-        const rateLimitedRes = rateLimit(res, true);
+        const rateLimitedRes = rateLimit(res, true, seed);
         console.log(`rate limited to: ${rateLimitedRes.length}`);
         return rateLimitedRes.slice(0, limit);
     } catch (err) {

@@ -196,12 +196,11 @@ migrations['007'] = {
   async up(db: Database) {
     await sql`CREATE EVENT if not exists
     ClearPosts
-  ON SCHEDULE EVERY 12 HOUR
+  ON SCHEDULE EVERY 1 DAY
   DO
   DELETE p, r FROM post p
   JOIN postrank r on p.uri = r.uri
   WHERE (r.score < 10 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 1 DAY))
-  OR (r.score < 5 and p.indexedAt < DATE_SUB(NOW(), INTERVAL 12 HOUR))
   OR p.indexedAt < DATE_SUB(NOW(), INTERVAL 3 DAY)`.execute(db);
   }
 };
@@ -308,5 +307,17 @@ migrations['009'] = {
   },
   async down(db: Kysely<MysqlDialect>) {
     await db.schema.dropTable('feed_usage').execute()
+  },
+};
+
+migrations['010'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('feed_usage')
+      .addColumn('last_post_output', 'integer')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('feed_usage').dropColumn('last_post_output').execute()
   },
 };

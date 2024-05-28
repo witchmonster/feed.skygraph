@@ -3,8 +3,8 @@ import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
 import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse, getUserCommunities } from '../common/communities'
 import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
-import { mixInFollows } from '../common/follows'
-import { recordUsage } from '../common/stats'
+import { mergeWithFollows, mixInFollows } from '../common/follows'
+import { recordPostOutput, recordUsage } from '../common/stats'
 
 // max 15 chars
 export const shortname = 'dynamic'
@@ -48,27 +48,29 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
     const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
     if (!existingRank1 || !existingRank2) {
-        res = await getFirstPagePosts(ctx, { withExplore: false, seed, gravity: 3, limit: params.limit * 10 }, communityResponse);
+        res = await getFirstPagePosts(ctx, { withExplore: false, seed, gravity: 4, limit: params.limit * 100, minQuality: 3 }, communityResponse);
         lastRank1 = 99999999;
         lastRank2 = 99999999;
         //turn off
-        followsRate = params.limit;
+        followsRate = 5;
     } else {
         res = await getRankedPosts(ctx, { existingRank: existingRank1, withExplore: false, skipReplies: false, gravity: 4, limit: params.limit * 2 }, communityResponseWithoutExplore);
         lastRank1 = res?.at(-1).rank;
         const res2: any = await getRankedPosts(ctx, { existingRank: existingRank2, withExplore: true, skipReplies: true, gravity: 3, limit: params.limit * 2 }, communityResponse);
         lastRank2 = res2?.at(-1).rank;
-        res = await mergePosts(seed, 6, rateLimit(res), rateLimit(res2));
+        res = await mergePosts(seed, 3, rateLimit(res, true, seed), rateLimit(res2, true, seed));
         followsRate = 5;
     }
 
-    const shuffledPosts = shuffleRateLimitTrim(res, params.limit);
+    const shuffledPosts = shuffleRateLimitTrim(res, params.limit, seed);
 
-    const { followsCursor, resultPosts } = await mixInFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
+    const { followsCursor, resultPosts } = await mergeWithFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
 
     const feed = resultPosts.map((row) => ({
         post: row.uri
     }))
+
+    await recordPostOutput(ctx, userDid, shortname, params.limit, feed.length);
 
     const cursor = `${seed}::${lastRank1}::${lastRank2}::${followsCursor}`;
     // console.log({ feed, cursor })
