@@ -45,8 +45,11 @@ export abstract class FirehoseSubscriptionBase {
           console.error('repo subscription could not handle message', err)
         }
         // update stored cursor every 20 events or so
-        if (isCommit(evt) && evt.seq % 2000 === 0) {
+        if (isCommit(evt) && evt.seq % 20 === 0) {
           await this.updateCursor(evt.seq)
+        }
+        if (isCommit(evt) && evt.seq % 2000 === 0) {
+          console.log(evt.seq);
         }
         // cleanup older
         if (isCommit(evt) && evt.seq % 1000000 === 0) {
@@ -72,7 +75,6 @@ export abstract class FirehoseSubscriptionBase {
 
   async updateCursor(cursor: number) {
     // console.log('updating cursor')
-    console.log(cursor);
     await this.db
       .insertInto('sub_state')
       .values({ cursor, service: this.service })

@@ -321,3 +321,9 @@ migrations['010'] = {
     await db.schema.alterTable('feed_usage').dropColumn('last_post_output').execute()
   },
 };
+
+migrations['011'] = {
+  async up(db: Database) {
+    await sql`SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))`.execute(db);
+  }
+};
