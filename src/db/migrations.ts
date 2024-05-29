@@ -327,3 +327,24 @@ migrations['011'] = {
     await sql`SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))`.execute(db);
   }
 };
+
+migrations['012'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('post')
+      .addColumn('repostSubject', 'varchar(255)')
+      .execute();
+    try {
+      await db.schema
+        .createIndex('idx_post_repost_subject')
+        .on('post')
+        .column('repostSubject')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_post_repost_subject, already exists`);
+    }
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('post').dropColumn('repostSubject').execute()
+  },
+};

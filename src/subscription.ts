@@ -28,7 +28,6 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .filter((create) => {
         // all posts
         return true;
-        // return create.record.text.match('^[А-Яа-яёЁЇїІіЄєҐґ]+$');
       })
       .map((create) => {
         // map posts to db row
@@ -38,6 +37,25 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           author: create.author,
           replyParent: create.record?.reply?.parent.uri ?? null,
           replyRoot: create.record?.reply?.root.uri ?? null,
+          indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
+        }
+      })
+
+    const repostsToDelete = ops.reposts.deletes.map((del) => del.uri)
+    const repostsToCreate = ops.reposts.creates
+      .filter((create) => {
+        // all reposts
+        return true;
+      })
+      .map((create) => {
+        // map posts to db row
+        return {
+          uri: create.uri,
+          cid: create.cid,
+          author: create.author,
+          replyParent: null,
+          replyRoot: null,
+          repostSubject: create.record.subject.uri,
           indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
         }
       })
@@ -103,6 +121,49 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         await this.db
           .insertInto('post')
           .values(postsToCreate)
+          .ignore()
+          .execute()
+      }
+    }
+    if (repostsToDelete.length > 0) {
+      await this.db
+        .deleteFrom('post')
+        .where('uri', 'in', repostsToDelete)
+        .execute()
+    }
+    if (repostsToCreate.length > 0) {
+      const communities = await this.db
+        .selectFrom('did_to_community')
+        .selectAll()
+        .where('did_to_community.did', 'in', repostsToCreate.map(post => post.author))
+        .execute();
+
+      const communityObj: {
+        [did: string]: {
+          did?: string,
+          f: string,
+          s: string,
+          c: string,
+          g: string,
+          e: string,
+          o: string
+        }
+      } = communities.reduce((a, v) => ({ ...a, [v.did]: v }), {})
+      if (communities?.length === repostsToCreate.length) {
+        const values = repostsToCreate.map(repost => {
+          let postWithCommunitiesreturn = { ...repost, ...communityObj[repost.author] };
+          delete postWithCommunitiesreturn.did;
+          return postWithCommunitiesreturn;
+        });
+        await this.db
+          .insertInto('post')
+          .values(values)
+          .ignore()
+          .execute()
+      } else {
+        await this.db
+          .insertInto('post')
+          .values(repostsToCreate)
           .ignore()
           .execute()
       }
