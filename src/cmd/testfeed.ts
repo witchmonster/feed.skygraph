@@ -7,7 +7,7 @@ const run = async () => {
     const serviceDid =
         maybeStr(process.env.FEEDGEN_SERVICE_DID) ?? `did:web:${hostname}`
     const server = await FeedGenerator.create({
-        port: maybeInt(process.env.FEEDGEN_PORT) ?? 3000,
+        port: maybeInt(process.env.TEST_FEEDGEN_PORT) ?? 3001,
         listenhost: maybeStr(process.env.FEEDGEN_LISTENHOST) ?? 'localhost',
         publisherDid:
             maybeStr(process.env.FEEDGEN_PUBLISHER_DID) ?? 'did:example:alice',
