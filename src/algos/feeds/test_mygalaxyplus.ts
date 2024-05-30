@@ -7,7 +7,7 @@ export const shortname = 't_galaxy'
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
   return generateCommunityPlusFeed({ ctx, params, userDid, follows }, {
     shortName: shortname,
-    feedName: "test 1",
+    feedName: "My Galaxy+ (test)",
     //first page
     firstPageHNGravity: 4,
     firstPageReplyRatio: 0.2,

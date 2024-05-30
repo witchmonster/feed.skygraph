@@ -7,7 +7,7 @@ export const shortname = 't_nebula'
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
     return generateCommunityPlusFeed({ ctx, params, userDid, follows }, {
         shortName: shortname,
-        feedName: "test 2",
+        feedName: "My Nebula+ (test)",
         //first page
         firstPageHNGravity: 4,
         firstPageReplyRatio: 0.2,
