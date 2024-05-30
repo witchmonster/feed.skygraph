@@ -2,7 +2,7 @@ import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
 import { generateCommunityPlusFeed } from '../templates/mycommunityplus'
 
-export const shortname = 'test_nebula'
+export const shortname = 't_nebula'
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
     return generateCommunityPlusFeed({ ctx, params, userDid, follows }, {

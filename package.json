@@ -12,6 +12,8 @@
     "stop": "ts-node src/index.ts",
     "feedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/feed.ts",
     "feedDown": "ts-node src/feed.ts",
+    "testfeedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/testfeed.ts",
+    "testfeedDown": "ts-node src/testfeed.ts",
     "build": "tsc"
   },
   "dependencies": {
