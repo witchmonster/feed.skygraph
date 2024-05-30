@@ -22,7 +22,7 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
     return await chronological.execute();
 }
 
-const mixInFollows = async (ctx: AppContext, followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
+const mixInFollows = async (ctx: AppContext, log: any[], followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
     let followsCursor;
     let resultPosts: { author: string, uri: string }[] = [];
     if (follows && follows.length > 0) {
@@ -30,7 +30,7 @@ const mixInFollows = async (ctx: AppContext, followsRate: number, existingCursor
         const rateLimitedFollows = rateLimit(followsResponse, true, seed);
         let j = 0;
         let i = 0;
-        console.log(`Merging in follows... ${rateLimitedFollows?.length}`);
+        log.push(`Merging in follows... ${rateLimitedFollows?.length}`);
         while (i < posts.length && j < rateLimitedFollows.length && resultPosts.length < limit) {
             if (resultPosts.length % followsRate === seed % followsRate) {
                 //don't add duplicate posts

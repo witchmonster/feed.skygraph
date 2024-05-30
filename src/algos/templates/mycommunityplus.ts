@@ -45,7 +45,9 @@ export interface MyCommunityPlusTemplateConfig {
 export const generateCommunityPlusFeed = async (feedContext: FeedContext, config: MyCommunityPlusTemplateConfig) => {
     const { ctx, params, userDid, follows } = feedContext;
 
-    console.log(`-------------------------- User ${userDid} from ${config.feedName} feed. Limit: ${params.limit} --------------------------`);
+    const log: any[] = [];
+
+    log.push(`-------------------------- User ${userDid} from ${config.feedName} feed. Limit: ${params.limit} --------------------------`)
 
     await recordUsage(ctx, userDid, config.shortName, params.limit);
 
@@ -66,7 +68,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
         seed = new Date().getUTCMilliseconds();
     }
 
-    console.log(`${seed}::${existingHomeRank}::${existingDiscoverRank}::${existingfollowsCursor}`);
+    log.push(`${seed}::${existingHomeRank}::${existingDiscoverRank}::${existingfollowsCursor}`);
 
 
     let generatedFeed;
@@ -75,13 +77,13 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
     let lastDiscoverRank;
     let followsRate;
     try {
-        const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, config.communityConfig);
+        const communityResponse: CommunityResponse = await getUserCommunities(ctx, log, userDid, config.communityConfig);
         const totalCommunities = communityResponse.topCommunitiesByLikes.communities.length + communityResponse.exploreCommunitiesByLikes.communities.length;
         const notEnoughCommunities = totalCommunities < config.communityConfig.totalCommunities;
         if (!existingHomeRank || !existingDiscoverRank) {
-            console.log(`Generating first page...`);
+            log.push(`Generating first page...`);
             const firstPageCommunityResponse = sliceCommunityResponse(communityResponse, config.firstPageCommunities);
-            console.log({ topCommunitiesByLikes: firstPageCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: firstPageCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({ topCommunitiesByLikes: firstPageCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: firstPageCommunityResponse.exploreCommunitiesByLikes.communities });
             res = await getFirstPagePosts(ctx, {
                 withWideExplore: notEnoughCommunities,
                 repliesRatio: config.firstPageReplyRatio,
@@ -93,12 +95,12 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             lastHomeRank = 99999999;
             lastDiscoverRank = 99999999;
             followsRate = config.firstPageFollowsRate;
-            res = shuffleRateLimitTrim(res, params.limit, seed, config.firstPageRandomizeWithinRateLimit);
+            res = shuffleRateLimitTrim(res, log, params.limit, seed, config.firstPageRandomizeWithinRateLimit);
         } else {
             //home part
-            console.log(`Generating home posts...`);
+            log.push(`Generating home posts...`);
             const homeCommunityResponse = sliceCommunityResponse(communityResponse, config.homeCommunities);
-            console.log({ topCommunitiesByLikes: homeCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: homeCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({ topCommunitiesByLikes: homeCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: homeCommunityResponse.exploreCommunitiesByLikes.communities });
             const homeRes: any = await getRankedPosts(ctx, {
                 existingRank: existingHomeRank,
                 withWideExplore: notEnoughCommunities,
@@ -108,9 +110,9 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             }, homeCommunityResponse);
             lastHomeRank = homeRes?.at(-1).rank;
             //discover part
-            console.log(`Generating discover posts...`);
+            log.push(`Generating discover posts...`);
             const discoverCommunityResponse = sliceCommunityResponse(communityResponse, config.discoverCommunities);
-            console.log({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
             const discoverRes: any = await getRankedPosts(ctx, {
                 existingRank: existingDiscoverRank,
                 withWideExplore: notEnoughCommunities,
@@ -127,15 +129,15 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
                 rateLimit(discoverRes, config.discoverRandomizeWithinRateLimit, seed)
             );
             followsRate = config.homeFollowsRate;
-            res = shuffleRateLimitTrim(res, params.limit, seed, false);
+            res = shuffleRateLimitTrim(res, log, params.limit, seed, false);
         }
-        const { followsCursor, resultPosts } = await mixInFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, res, follows);
+        const { followsCursor, resultPosts } = await mixInFollows(ctx, log, followsRate, existingfollowsCursor, params.limit, seed, res, follows);
 
         const feed = resultPosts.filter(row => row !== undefined && row.uri !== undefined).map((row) => ({
             post: row.uri
         }))
 
-        console.log(`-------------------------- SUCCESS. Post output: ${feed.length} --------------------------`)
+        log.push(`-------------------------- SUCCESS. Post output: ${feed.length} --------------------------`)
         await recordPostOutput(ctx, userDid, config.shortName, params.limit, feed.length);
 
         generatedFeed = {
@@ -144,12 +146,16 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
         }
     } catch (err) {
         console.error(err);
-        console.log(`-------------------------- ERROR. User: ${userDid} --------------------------`)
+        log.push(`-------------------------- ERROR. User: ${userDid} --------------------------`)
         await recordPostOutput(ctx, userDid, config.shortName, params.limit, -1);
 
         generatedFeed = {
             cursor: `${seed}::${undefined}::${undefined}::${undefined}`,
             feed: []
+        }
+    } finally {
+        for (let i = 0; i < log.length; i++) {
+            console.log(log[i])
         }
     }
 

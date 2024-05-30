@@ -41,8 +41,8 @@ interface RankedRequestConfig {
     limit: number,
 }
 
-const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
-    console.log("auto-picking user community")
+const autoPickCommunity = async (ctx: AppContext, log: any[], communitiesRes: any) => {
+    // console.log("auto-picking user community")
     const communityCodes: string[] = [
         (communitiesRes.rows[0] as any)?.f,
         (communitiesRes.rows[0] as any)?.s,
@@ -58,7 +58,7 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
         .orderBy('community asc')
         .execute();
 
-    console.log(communities);
+    log.push(communities);
 
     const largestCommunity = communities.reduce((p, c) => c.size > p.size ? c : p, communities[0]);
     const min50kCommunities = communities.filter(community => community.size >= 50000);
@@ -79,7 +79,7 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
 
     const perfectCommunity = over5kSweetSpotCommunity ?? over10kSweetSpotCommunity ?? over20kSweetSpotCommunity ?? under5kSweetSpotCommunity ?? lesserEvilCommunity ?? largestCommunity;
 
-    console.log({
+    log.push({
         'Auto-picked community': `${perfectCommunity.community}: ${perfectCommunity.size}`,
         'First Choice (>5k <10k)': `${over5kSweetSpotCommunity?.community}: ${over5kSweetSpotCommunity?.size}`,
         'Backup #1 (>10k <20k)': `${over10kSweetSpotCommunity?.community}: ${over10kSweetSpotCommunity?.size}`,
@@ -93,7 +93,7 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
     return perfectCommunity;
 }
 
-const getUserCommunities = async (ctx: AppContext, userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
+const getUserCommunities = async (ctx: AppContext, log: any[], userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
     // console.log("getting user community");
     const mode = config?.mode ?? "auto";
     userDid = userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
@@ -104,7 +104,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     let expandCommunityPrefix;
 
     const userHasCommunities = communitiesRes && communitiesRes.rows && communitiesRes.rows.length > 0;
-    const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
+    const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, log, communitiesRes) : { community: 's574', prefix: 's' };
 
     let minCommunities;
     let trustedFriendsLimit;

@@ -33,23 +33,23 @@ function rateLimit(array: PostResult[] | undefined, randomize: boolean, seed: nu
     return [...newArray.values()];
 }
 
-function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number, randomize: boolean) {
+function shuffleRateLimitTrim(res: PostResult[], log: any[], limit: number, seed: number, randomize: boolean) {
     shuffleArray(res);
 
-    console.log(`total posts: ${res.length}`);
+    log.push(`total posts: ${res.length}`);
 
     try {
         const rateLimitedRes = rateLimit(res, randomize, seed);
 
         if (rateLimitedRes.length >= Math.max(limit / 2, 30)) {
-            console.log(`rate limited to: ${rateLimitedRes.length}`);
+            log.push(`rate limited to: ${rateLimitedRes.length}`);
             return rateLimitedRes.slice(0, limit);
         } else {
-            console.log(`rate limited skipped: ${rateLimitedRes.length}`);
+            log.push(`rate limited skipped: ${rateLimitedRes.length}`);
             return res.slice(0, limit);
         }
     } catch (err) {
-        console.log(`rate limit failed: ${err}`);
+        log.push(`rate limit failed: ${err}`);
         return res.slice(0, limit);
     }
 
