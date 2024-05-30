@@ -41,7 +41,7 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number, ra
     try {
         const rateLimitedRes = rateLimit(res, randomize, seed);
 
-        if (rateLimitedRes.length >= limit / 2) {
+        if (rateLimitedRes.length >= Math.max(limit / 2, 30)) {
             console.log(`rate limited to: ${rateLimitedRes.length}`);
             return rateLimitedRes.slice(0, limit);
         } else {
