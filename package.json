@@ -8,9 +8,9 @@
   "license": "MIT",
   "scripts": {
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
-    "start": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/index.ts",
+    "start": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/index.ts",
     "stop": "ts-node src/index.ts",
-    "feedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/feed.ts",
+    "feedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/feed.ts",
     "feedDown": "ts-node src/feed.ts",
     "build": "tsc"
   },

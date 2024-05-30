@@ -1,10 +1,9 @@
-import { InvalidRequestError } from '@atproto/xrpc-server'
+import { InternalServerError, InvalidRequestError } from '@atproto/xrpc-server'
 import { Server } from '../lexicon'
 import { AppContext } from '../config'
 import algos from '../algos'
 import { validateAuth } from '../auth'
 import { AtUri } from '@atproto/syntax'
-import { AtpAgent } from '@atproto/api'
 
 export default function (server: Server, ctx: AppContext) {
   server.app.bsky.feed.getFeedSkeleton(async ({ params, req }) => {
@@ -26,7 +25,7 @@ export default function (server: Server, ctx: AppContext) {
     const feedUri = new AtUri(params.feed)
     const algo = algos[feedUri.rkey];
     if (
-      (feedUri.hostname !== 'did:plc:v7iswx544swf2usdcp32p647' && feedUri.hostname !== 'did:plc:o5aohupqzlzcmddhgatk4ty7') ||
+      (feedUri.hostname !== process.env.FEEDGEN_PUBLISHER_DID && feedUri.hostname !== process.env.FEEDGEN_TEST_PUBLISHER_DID) ||
       feedUri.collection !== 'app.bsky.feed.generator' ||
       !algo
     ) {
@@ -55,7 +54,7 @@ export default function (server: Server, ctx: AppContext) {
     }
 
     if (!requesterDid) {
-      requesterDid = 'did:plc:v7iswx544swf2usdcp32p647'
+      requesterDid = process.env.DEFAULT_FEED_USER_DID
     }
 
     let follows;
@@ -68,7 +67,15 @@ export default function (server: Server, ctx: AppContext) {
       console.log(`Couldn't get follows.`)
     }
 
-    const body = await algo(ctx, params, requesterDid, follows)
+    let body;
+    try {
+      body = await algo(ctx, params, requesterDid, follows)
+    } catch (err) {
+      throw new InternalServerError(
+        err,
+        'FeedGeneratorFailed',
+      )
+    }
     return {
       encoding: 'application/json',
       body: body,

@@ -15,7 +15,7 @@ function shuffleArray(array: any) {
 }
 
 function rateLimit(array: PostResult[] | undefined, randomize: boolean, seed: number): PostResult[] {
-    if (!array) {
+    if (!array || array.length === 0) {
         return [];
     }
     const newArray: Map<string, PostResult> = new Map();
@@ -33,13 +33,13 @@ function rateLimit(array: PostResult[] | undefined, randomize: boolean, seed: nu
     return [...newArray.values()];
 }
 
-function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number) {
+function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number, randomize: boolean) {
     shuffleArray(res);
 
     console.log(`total posts: ${res.length}`);
 
     try {
-        const rateLimitedRes = rateLimit(res, true, seed);
+        const rateLimitedRes = rateLimit(res, randomize, seed);
         console.log(`rate limited to: ${rateLimitedRes.length}`);
         return rateLimitedRes.slice(0, limit);
     } catch (err) {
@@ -49,7 +49,7 @@ function shuffleRateLimitTrim(res: PostResult[], limit: number, seed: number) {
 
 }
 
-const mergePosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[] | undefined, postsToMixIn: { author: string, uri: string }[] | undefined) => {
+const mixInPosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[] | undefined, postsToMixIn: { author: string, uri: string }[] | undefined) => {
     if (!originalPosts || !postsToMixIn) {
         return [];
     }
@@ -77,4 +77,4 @@ const mergePosts = async (seed: number, rate: number, originalPosts: { author: s
     return mixedInPosts;
 }
 
-export { shuffleArray, rateLimit, shuffleRateLimitTrim, mergePosts }
+export { shuffleArray, rateLimit, shuffleRateLimitTrim, mixInPosts as mergePosts }

@@ -348,3 +348,18 @@ migrations['012'] = {
     await db.schema.alterTable('post').dropColumn('repostSubject').execute()
   },
 };
+
+// migrations['013'] = {
+//   async up(db: Kysely<MysqlDialect>) {
+//     await db.schema
+//       .createTable('feed_overrides')
+//       .addColumn('user', 'varchar(255)', (col) => col.notNull())
+//       .addColumn('feed', 'varchar(16)', (col) => col.notNull())
+//       .addColumn('c_exclude', 'json')
+//       .addPrimaryKeyConstraint('primary_key', ['user', 'feed'])
+//       .execute();
+//   },
+//   async down(db: Kysely<MysqlDialect>) {
+//     await db.schema.dropTable('feed_overrides').execute()
+//   },
+// };

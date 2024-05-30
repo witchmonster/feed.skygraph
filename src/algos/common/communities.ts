@@ -19,14 +19,13 @@ interface CommunityResponse {
 
 interface CommunityRequestConfig {
     mode?: 'auto' | 'constellation' | 'nebula'
-    withTopLiked?: boolean
-    withExplore?: boolean
-    topLikedLimit?: number
-    trustedFriendsLimit?: number
+    totalCommunities: number
+    trustedFriendsLimit: number
 }
 
 interface FirstPageRequestConfig {
-    withExplore: boolean,
+    withWideExplore: boolean,
+    repliesRatio: number,
     seed: number,
     gravity: number,
     limit: number,
@@ -35,7 +34,7 @@ interface FirstPageRequestConfig {
 }
 
 interface RankedRequestConfig {
-    withExplore: boolean,
+    withWideExplore: boolean,
     skipReplies: boolean,
     existingRank: any,
     gravity: number,
@@ -62,26 +61,34 @@ const autoPickCommunity = async (ctx: AppContext, communitiesRes: any) => {
     console.log(communities);
 
     const largestCommunity = communities.reduce((p, c) => c.size > p.size ? c : p, communities[0]);
-    const min50kCommunities = communities.filter(community => community.size > 50000);
-    const min10kCommunities = communities.filter(community => community.size > 10000 && community.size < 50000);
-    const min3kCommunities = communities.filter(community => community.size > 3000 && community.size < 10000);
-    const max3kCommunities = communities.filter(community => community.size < 3000);
+    const min50kCommunities = communities.filter(community => community.size >= 50000);
+    const min20kCommunities = communities.filter(community => community.size >= 20000 && community.size < 50000);
+    const min10kCommunities = communities.filter(community => community.size >= 10000 && community.size < 20000);
+    const min5kCommunities = communities.filter(community => community.size >= 5000 && community.size < 10000);
+    const max5kCommunities = communities.filter(community => community.size >= 1000 && community.size < 5000);
+    //largest of 5k+
+    const over5kSweetSpotCommunity = min5kCommunities[0] && min5kCommunities.reduce((p, c) => c.size > p.size ? c : p, min5kCommunities[0]);
     //smallest of 10k+
-    const sweetSpotCommunity = min10kCommunities[0] && min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
-    //largest of 3k+
-    const under3kSweetSpotCommunity = min3kCommunities[0] && min3kCommunities.reduce((p, c) => c.size > p.size ? c : p, min3kCommunities[0]);
-    //largest of smol
-    const backupSweetSpotCommunity = max3kCommunities[0] && max3kCommunities.reduce((p, c) => c.size > p.size ? c : p, max3kCommunities[0]);
+    const over10kSweetSpotCommunity = min10kCommunities[0] && min10kCommunities.reduce((p, c) => c.size < p.size ? c : p, min10kCommunities[0]);
+    //smallest of 20k+
+    const over20kSweetSpotCommunity = min20kCommunities[0] && min20kCommunities.reduce((p, c) => c.size < p.size ? c : p, min20kCommunities[0]);
+    //largest of under 5k
+    const under5kSweetSpotCommunity = max5kCommunities[0] && max5kCommunities.reduce((p, c) => c.size > p.size ? c : p, max5kCommunities[0]);
     //smallest of 50k+ (those are too large, but better than picking 250+ gigacluster)
     const lesserEvilCommunity = min50kCommunities[0] && min50kCommunities.reduce((p, c) => c.size < p.size ? c : p, min50kCommunities[0]);
 
-    const perfectCommunity = sweetSpotCommunity ?? under3kSweetSpotCommunity ?? backupSweetSpotCommunity ?? lesserEvilCommunity ?? largestCommunity;
+    const perfectCommunity = over5kSweetSpotCommunity ?? over10kSweetSpotCommunity ?? over20kSweetSpotCommunity ?? under5kSweetSpotCommunity ?? lesserEvilCommunity ?? largestCommunity;
 
-    console.log(`Auto-picked community: ${perfectCommunity.community}:${perfectCommunity.size}`);
-    console.log(`Backup #1: ${under3kSweetSpotCommunity?.community}:${under3kSweetSpotCommunity?.size}`);
-    console.log(`Backup #2: ${backupSweetSpotCommunity?.community}:${backupSweetSpotCommunity?.size}`);
-    console.log(`Backup #3: ${lesserEvilCommunity?.community}:${lesserEvilCommunity?.size}`);
-    console.log(`Backup #4: ${largestCommunity.community}:${largestCommunity.size}`);
+    console.log({
+        'Auto-picked community': `${perfectCommunity.community}: ${perfectCommunity.size}`,
+        'First Choice (>5k <10k)': `${over5kSweetSpotCommunity?.community}: ${over5kSweetSpotCommunity?.size}`,
+        'Backup #1 (>10k <20k)': `${over10kSweetSpotCommunity?.community}: ${over10kSweetSpotCommunity?.size}`,
+        'Backup #2 (>20k <50k)': `${over20kSweetSpotCommunity?.community}: ${over20kSweetSpotCommunity?.size}`,
+        'Backup #3 (>1k <5k)': `${under5kSweetSpotCommunity?.community}: ${under5kSweetSpotCommunity?.size}`,
+        'Backup #4 (>50k)': `${lesserEvilCommunity?.community}: ${lesserEvilCommunity?.size}`,
+        //in most cases you don't want to hit that
+        'Backup #5 (largest)': `${largestCommunity.community}:${largestCommunity.size}`
+    });
 
     return perfectCommunity;
 }
@@ -99,13 +106,13 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     const userHasCommunities = communitiesRes && communitiesRes.rows && communitiesRes.rows.length > 0;
     const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, communitiesRes) : { community: 's574', prefix: 's' };
 
-    let topLikedLimit;
+    let minCommunities;
     let trustedFriendsLimit;
     if (mode === "constellation") {
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.o, prefix: 'o' } : { community: 's574', prefix: 's' };
         topLikedCommunityPrefix = 'o';
         expandCommunityPrefix = 'o';
-        topLikedLimit = config?.topLikedLimit ?? 10;
+        minCommunities = config?.totalCommunities ?? 12;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
@@ -113,7 +120,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' } : { community: 's574', prefix: 's' };
         topLikedCommunityPrefix = 'e';
         expandCommunityPrefix = 'e';
-        topLikedLimit = config?.topLikedLimit ?? 10;
+        minCommunities = config?.totalCommunities ?? 5;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
@@ -123,7 +130,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
     const topLikedCommunityDotPrefix: any = `did_to_community.${topLikedCommunityPrefix}`;
     const expandDidToCommunityDotPrefix: any = `did_to_community.${expandCommunityPrefix}`;
 
-    if (config?.withTopLiked) {
+    if (config?.totalCommunities && config?.totalCommunities > 0) {
         const topLikedCommunitiesQuery = ctx.db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select([topLikedCommunityDotPrefix, 'likescore.subject'])
@@ -132,7 +139,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
             .where(userDidToCommunityDotPrefix, '<>', userCommunity.community)
             .groupBy(topLikedCommunityDotPrefix)
             .orderBy(sql`sum(likescore.score)`, 'desc')
-            .limit(topLikedLimit);
+            .limit(minCommunities);
 
         // console.log(topLikedCommunitiesQuery.compile().sql);
 
@@ -142,7 +149,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
 
         // console.log("top liked communities: " + topCommunitiesByLikes)
 
-        if (config?.withExplore && topCommunitiesByLikes.length < topLikedLimit) {
+        if (topCommunitiesByLikes.length < minCommunities) {
             if (topCommunitiesByLikes.length > 0) {
                 const exploreCommunitiesQuery = ctx.db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
@@ -154,8 +161,8 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
                     .where(topLikedCommunityDotPrefix, 'not in', topCommunitiesByLikes)
                     //choose top liked communities by friends
                     .groupBy(expandDidToCommunityDotPrefix)
-                    .orderBy(sql`sum(likescore.score)`, 'desc')
-                    .limit(topLikedLimit - topCommunitiesByLikes.length);
+                    .orderBy(sql`sum(likescore.score3)`, 'desc')
+                    .limit(minCommunities - topCommunitiesByLikes.length);
 
                 // console.log(exploreCommunitiesQuery.compile().sql);
 
@@ -177,10 +184,8 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
                         prefix: expandCommunityPrefix
                     }
                 }
-                console.log(response)
+                // console.log(response)
                 return response;
-            } else {
-                //autopick community
             }
         }
 
@@ -196,7 +201,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
                 prefix: expandCommunityPrefix
             }
         }
-        console.log(response)
+        // console.log(response)
         return response;
     }
 
@@ -212,13 +217,13 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
             prefix: expandCommunityPrefix
         }
     }
-    console.log(response)
+    // console.log(response)
     return response;
 }
 
 const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig, communityResponse: CommunityResponse) => {
-    console.log(`-------------------- first page posts --------------------`);
-    const { withExplore, seed, gravity, limit, minQuality, noReplies } = config;
+    // console.log(`-------------------- first page posts --------------------`);
+    const { withWideExplore, repliesRatio, seed, gravity, limit, minQuality, noReplies } = config;
     const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const lookupCommunities = (eb) => {
@@ -226,7 +231,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             eb(userCommunity.prefix, '=', userCommunity.community)
         ]
 
-        if (withExplore) {
+        if (withWideExplore || (topCommunitiesByLikes.communities.length === 0 && exploreCommunitiesByLikes.communities.length === 0)) {
             response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
         }
 
@@ -248,9 +253,8 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         .select(({ fn, val, ref }) => [
             //NH ranking: https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
             //top posts are somewhat immune and, so adding downranking for that
-            //for a popular post there's 80% chance it will get dropped so it doesn't stick around on top all the time
-            //there's additional 80% chance for replies to get dropped
-            sql<string>`((score-1)*(case when score >= 50 and rand(${seed}) >= 0.2 then 1 else 0 end)*(case when 'post.replyParent' is not null and rand() >= 0.2 then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
+            //chance for any reply to get dropped
+            sql<string>`((score-1)*(case when 'post.replyParent' is not null and rand(${seed}) <= ${repliesRatio} then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
         .where(lookupCommunities)
@@ -268,14 +272,14 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             .where('post.replyParent', 'is', null)
     }
 
-    // console.log(rankomized.compile().sql);
+    // console.log(firstPageQuery.compile().sql);
 
     return await firstPageQuery.execute();
 }
 
 const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, communityResponse: CommunityResponse) => {
-    console.log(`-------------------- ranked posts --------------------`);
-    const { withExplore, skipReplies, existingRank, gravity, limit } = config;
+    // console.log(`-------------------- ranked posts --------------------`);
+    const { withWideExplore: withExplore, skipReplies, existingRank, gravity, limit } = config;
     const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
 
     const prefixes = [...new Set([userCommunity.prefix, exploreCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
@@ -285,7 +289,7 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
             eb(userCommunity.prefix, '=', userCommunity.community),
         ]
 
-        if (withExplore) {
+        if (withExplore || (topCommunitiesByLikes.communities.length === 0 && exploreCommunitiesByLikes.communities.length === 0)) {
             response.push(eb(exploreCommunity.prefix, '=', exploreCommunity.community))
         }
 
@@ -333,4 +337,18 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
     return await ranked.execute();
 }
 
-export { getUserCommunities, getFirstPagePosts, getRankedPosts, FirstPageRequestConfig, CommunityRequestConfig, CommunityResponse }
+const sliceCommunityResponse = (res: CommunityResponse, maxCount: number) => {
+    const topLikedSlice = res.topCommunitiesByLikes.communities.slice(0, maxCount);
+    const explorePortion = maxCount - topLikedSlice.length;
+    return {
+        ...res, topCommunitiesByLikes: {
+            communities: topLikedSlice,
+            prefix: res.topCommunitiesByLikes.prefix
+        }, exploreCommunitiesByLikes: {
+            communities: explorePortion === 0 ? [] : res.exploreCommunitiesByLikes.communities.slice(0, explorePortion),
+            prefix: res.exploreCommunitiesByLikes.prefix
+        }
+    };
+}
+
+export { getUserCommunities, getFirstPagePosts, getRankedPosts, sliceCommunityResponse, FirstPageRequestConfig, CommunityRequestConfig, CommunityResponse }

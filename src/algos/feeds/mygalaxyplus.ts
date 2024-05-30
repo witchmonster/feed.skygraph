@@ -1,82 +1,39 @@
-import { InvalidRequestError } from '@atproto/xrpc-server'
 import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
-import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse, getUserCommunities } from '../common/communities'
-import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
-import { mergeWithFollows, mixInFollows } from '../common/follows'
-import { recordPostOutput, recordUsage } from '../common/stats'
+import { generateCommunityPlusFeed } from '../templates/mycommunityplus'
 
-// max 15 chars
 export const shortname = 'skygraph'
-const feedName = "My Galaxy+"
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {
-  console.log(`User ${userDid} from ${feedName} feed`);
-
-  await recordUsage(ctx, userDid, shortname, params.limit);
-
-  let seed: number;
-  let existingRank1;
-  let existingRank2;
-  let existingfollowsCursor;
-  if (params.cursor) {
-    const [passedSeed, rank1, rank2, timestamp] = params.cursor.split('::')
-    existingRank1 = rank1;
-    existingRank2 = rank2;
-    existingfollowsCursor = timestamp;
-    if (!passedSeed || !rank1) {
-      throw new InvalidRequestError('malformed cursor')
+  return generateCommunityPlusFeed({ ctx, params, userDid, follows }, {
+    shortName: shortname,
+    feedName: "My Galaxy+",
+    //first page
+    firstPageHNGravity: 4,
+    firstPageReplyRatio: 0.2,
+    firstPageMinQuality: 3,
+    firstPageCommunities: 5,
+    firstPageFollowsRate: 5,
+    firstPagePostLookupMultiplier: 20,
+    firstPageRandomizeWithinRateLimit: true,
+    //main feed
+    homeHNGravity: 4,
+    homeSkipReplies: false,
+    homeCommunities: 5,
+    homeFollowsRate: 5,
+    homePostLookupMultiplier: 3,
+    homeRandomizeWithinRateLimit: true,
+    //discover mix in
+    discoverHNGravity: 3,
+    discoverSkipReplies: true,
+    discoverCommunities: 7,
+    discoverPostsRate: 5,
+    discoverRandomizeWithinRateLimit: true,
+    //input communities
+    communityConfig: {
+      mode: "nebula",
+      totalCommunities: 7,
+      trustedFriendsLimit: 5
     }
-    seed = +passedSeed;
-  } else {
-    seed = new Date().getUTCMilliseconds();
-  }
-
-  console.log(`${seed}::${existingRank1}::${existingRank2}::${existingfollowsCursor}`);
-
-  const communityConfig: CommunityRequestConfig = {
-    mode: "nebula",
-    withTopLiked: true,
-    withExplore: true,
-    topLikedLimit: 5,
-    trustedFriendsLimit: 5
-  };
-  let res: any;
-  let lastRank1;
-  let lastRank2;
-  let followsRate;
-  const communityResponse: CommunityResponse = await getUserCommunities(ctx, userDid, communityConfig);
-  const communityResponseWithoutExplore = { ...communityResponse, exploreCommunitiesByLikes: { communities: [], prefix: communityResponse.exploreCommunitiesByLikes.prefix } };
-  if (!existingRank1 || !existingRank2) {
-    res = await getFirstPagePosts(ctx, { withExplore: false, seed, gravity: 4, limit: params.limit * 10, minQuality: 3 }, communityResponse);
-    lastRank1 = 99999999;
-    lastRank2 = 99999999;
-    //turn off
-    followsRate = 5;
-  } else {
-    res = await getRankedPosts(ctx, { existingRank: existingRank1, withExplore: false, skipReplies: false, gravity: 4, limit: params.limit * 2 }, communityResponseWithoutExplore);
-    lastRank1 = res?.at(-1).rank;
-    const res2: any = await getRankedPosts(ctx, { existingRank: existingRank2, withExplore: true, skipReplies: true, gravity: 3, limit: params.limit * 2 }, communityResponse);
-    lastRank2 = res2?.at(-1).rank;
-    res = await mergePosts(seed, 3, rateLimit(res, true, seed), rateLimit(res2, true, seed));
-    followsRate = 5;
-  }
-
-  const shuffledPosts = shuffleRateLimitTrim(res, params.limit, seed);
-
-  const { followsCursor, resultPosts } = await mergeWithFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, shuffledPosts, follows);
-
-  const feed = resultPosts.map((row) => ({
-    post: row.uri
-  }))
-
-  await recordPostOutput(ctx, userDid, shortname, params.limit, feed.length);
-
-  const cursor = `${seed}::${lastRank1}::${lastRank2}::${followsCursor}`;
-  // console.log({ feed, cursor })
-
-  return {
-    cursor,
-    feed,
-  }
+  })
 }

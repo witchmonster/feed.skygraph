@@ -29,7 +29,7 @@ const recordUsage = async (ctx: AppContext, userDid: string, feedName: string, l
             refreshcount: 1,
             lastUpdated: new Date().toISOString().substring(0, 19)
         }
-        console.log({ values });
+        // console.log({ values });
         await ctx.db.insertInto('feed_usage')
             .values(values)
             .ignore()
