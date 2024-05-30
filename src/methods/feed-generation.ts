@@ -54,7 +54,11 @@ export default function (server: Server, ctx: AppContext) {
     }
 
     if (!requesterDid) {
-      requesterDid = process.env.DEFAULT_FEED_USER_DID
+      //hack, todo: inject this properly
+      if (feedUri.hostname === process.env.FEEDGEN_TEST_PUBLISHER_DID)
+        requesterDid = process.env.TEST_DEFAULT_FEED_USER_DID
+      if (feedUri.hostname === process.env.FEEDGEN_PUBLISHER_DID)
+        requesterDid = process.env.DEFAULT_FEED_USER_DID
     }
 
     let follows;
