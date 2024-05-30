@@ -161,7 +161,7 @@ const getUserCommunities = async (ctx: AppContext, userDid: string, config?: Com
                     .where(topLikedCommunityDotPrefix, 'not in', topCommunitiesByLikes)
                     //choose top liked communities by friends
                     .groupBy(expandDidToCommunityDotPrefix)
-                    .orderBy(sql`sum(likescore.score3)`, 'desc')
+                    .orderBy(sql`sum(likescore.score)`, 'desc')
                     .limit(minCommunities - topCommunitiesByLikes.length);
 
                 // console.log(exploreCommunitiesQuery.compile().sql);
