@@ -41,24 +41,24 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
       })
 
-    const repostsToDelete = ops.reposts.deletes.map((del) => del.uri)
-    const repostsToCreate = ops.reposts.creates
-      .filter((create) => {
-        // all reposts
-        return true;
-      })
-      .map((create) => {
-        // map posts to db row
-        return {
-          uri: create.uri,
-          cid: create.cid,
-          author: create.author,
-          replyParent: null,
-          replyRoot: null,
-          repostSubject: create.record.subject.uri,
-          indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
-        }
-      })
+    // const repostsToDelete = ops.reposts.deletes.map((del) => del.uri)
+    // const repostsToCreate = ops.reposts.creates
+    //   .filter((create) => {
+    //     // all reposts
+    //     return true;
+    //   })
+    //   .map((create) => {
+    //     // map posts to db row
+    //     return {
+    //       uri: create.uri,
+    //       cid: create.cid,
+    //       author: create.author,
+    //       replyParent: null,
+    //       replyRoot: null,
+    //       repostSubject: create.record.subject.uri,
+    //       indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
+    //     }
+    //   })
 
     const likesToCreate = ops.likes.creates
       .filter((create) => {
@@ -125,49 +125,49 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           .execute()
       }
     }
-    if (repostsToDelete.length > 0) {
-      await this.db
-        .deleteFrom('post')
-        .where('uri', 'in', repostsToDelete)
-        .execute()
-    }
-    if (repostsToCreate.length > 0) {
-      const communities = await this.db
-        .selectFrom('did_to_community')
-        .selectAll()
-        .where('did_to_community.did', 'in', repostsToCreate.map(post => post.author))
-        .execute();
+    // if (repostsToDelete.length > 0) {
+    //   await this.db
+    //     .deleteFrom('post')
+    //     .where('uri', 'in', repostsToDelete)
+    //     .execute()
+    // }
+    // if (repostsToCreate.length > 0) {
+    //   const communities = await this.db
+    //     .selectFrom('did_to_community')
+    //     .selectAll()
+    //     .where('did_to_community.did', 'in', repostsToCreate.map(post => post.author))
+    //     .execute();
 
-      const communityObj: {
-        [did: string]: {
-          did?: string,
-          f: string,
-          s: string,
-          c: string,
-          g: string,
-          e: string,
-          o: string
-        }
-      } = communities.reduce((a, v) => ({ ...a, [v.did]: v }), {})
-      if (communities?.length === repostsToCreate.length) {
-        const values = repostsToCreate.map(repost => {
-          let postWithCommunitiesreturn = { ...repost, ...communityObj[repost.author] };
-          delete postWithCommunitiesreturn.did;
-          return postWithCommunitiesreturn;
-        });
-        await this.db
-          .insertInto('post')
-          .values(values)
-          .ignore()
-          .execute()
-      } else {
-        await this.db
-          .insertInto('post')
-          .values(repostsToCreate)
-          .ignore()
-          .execute()
-      }
-    }
+    //   const communityObj: {
+    //     [did: string]: {
+    //       did?: string,
+    //       f: string,
+    //       s: string,
+    //       c: string,
+    //       g: string,
+    //       e: string,
+    //       o: string
+    //     }
+    //   } = communities.reduce((a, v) => ({ ...a, [v.did]: v }), {})
+    //   if (communities?.length === repostsToCreate.length) {
+    //     const values = repostsToCreate.map(repost => {
+    //       let postWithCommunitiesreturn = { ...repost, ...communityObj[repost.author] };
+    //       delete postWithCommunitiesreturn.did;
+    //       return postWithCommunitiesreturn;
+    //     });
+    //     await this.db
+    //       .insertInto('post')
+    //       .values(values)
+    //       .ignore()
+    //       .execute()
+    //   } else {
+    //     await this.db
+    //       .insertInto('post')
+    //       .values(repostsToCreate)
+    //       .ignore()
+    //       .execute()
+    //   }
+    // }
     if (likesToCreate.length > 0) {
       await this.db
         .insertInto('likescore')
