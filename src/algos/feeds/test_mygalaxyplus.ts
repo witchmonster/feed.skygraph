@@ -26,13 +26,13 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     //discover mix in
     discoverHNGravity: 3,
     discoverSkipReplies: true,
-    discoverCommunities: 10,
+    discoverCommunities: 7,
     discoverPostsRate: 5,
     discoverRandomizeWithinRateLimit: true,
     //input communities
     communityConfig: {
       mode: "nebula",
-      totalCommunities: 10,
+      totalCommunities: 7,
       trustedFriendsLimit: 5
     }
   })
