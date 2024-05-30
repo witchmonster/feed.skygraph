@@ -3,7 +3,7 @@ import { QueryParams } from '../../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../../config'
 import { getFirstPagePosts, getRankedPosts, CommunityRequestConfig, CommunityResponse, getUserCommunities, sliceCommunityResponse } from '../common/communities'
 import { mergePosts, rateLimit, shuffleRateLimitTrim } from '../common/util'
-import { mergeWithFollows } from '../common/follows'
+import { mixInFollows } from '../common/follows'
 import { recordPostOutput, recordUsage } from '../common/stats'
 
 interface FeedContext {
@@ -45,7 +45,7 @@ export interface MyCommunityPlusTemplateConfig {
 export const generateCommunityPlusFeed = async (feedContext: FeedContext, config: MyCommunityPlusTemplateConfig) => {
     const { ctx, params, userDid, follows } = feedContext;
 
-    console.log(`-------------------------------------------- User ${userDid} from ${config.feedName} feed --------------------------------------------`);
+    console.log(`-------------------------- User ${userDid} from ${config.feedName} feed. Limit: ${params.limit} --------------------------`);
 
     await recordUsage(ctx, userDid, config.shortName, params.limit);
 
@@ -129,13 +129,13 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             followsRate = config.homeFollowsRate;
             res = shuffleRateLimitTrim(res, params.limit, seed, false);
         }
-        const { followsCursor, resultPosts } = await mergeWithFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, res, follows);
+        const { followsCursor, resultPosts } = await mixInFollows(ctx, followsRate, existingfollowsCursor, params.limit, seed, res, follows);
 
         const feed = resultPosts.filter(row => row !== undefined && row.uri !== undefined).map((row) => ({
             post: row.uri
         }))
 
-        console.log(`-------------------------------------------- SUCCESS. Post output: ${feed.length} --------------------------------------------`)
+        console.log(`-------------------------- SUCCESS. Post output: ${feed.length} --------------------------`)
         await recordPostOutput(ctx, userDid, config.shortName, params.limit, feed.length);
 
         generatedFeed = {
@@ -144,7 +144,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
         }
     } catch (err) {
         console.error(err);
-        console.log(`-------------------------------------------- ERROR. User: ${userDid} --------------------------------------------`)
+        console.log(`-------------------------- ERROR. User: ${userDid} --------------------------`)
         await recordPostOutput(ctx, userDid, config.shortName, params.limit, -1);
 
         generatedFeed = {
