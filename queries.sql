@@ -6,7 +6,7 @@ select count(distinct user) from feed_usage where feed_usage.limit>=10 and (feed
 select * from feed_usage where last_post_output is not null and feed_usage.limit>=10 and lastUpdated > DATE_SUB(NOW(), INTERVAL 1 hour) and last_post_output < feed_usage.limit / 2 order by last_post_output asc limit 20;
 
 -- debug user nebulas
-select sum(l.score), dc.e from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...' group by dc.e order by sum(l.score) desc;
+select sum(l.score), dc.e from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...'  and dc.e <> 'e[user`s nebula]' group by dc.e order by sum(l.score) desc limit 10;
 
 -- debug user constellations
-select sum(l.score), dc.o from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...' group by dc.o order by sum(l.score) desc;
+select sum(l.score), dc.o from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...' and dc.o <> 'o[user`s constellation]' group by dc.o order by sum(l.score) desc limit 20;
