@@ -7,3 +7,6 @@ select * from feed_usage where last_post_output is not null and feed_usage.limit
 
 -- debug user nebulas
 select sum(l.score), dc.e from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...' group by dc.e order by sum(l.score) desc;
+
+-- debug user constellations
+select sum(l.score), dc.o from likescore l join did_to_community dc on l.subject=dc.did where l.author = 'did:plc:abcd...' group by dc.o order by sum(l.score) desc;
