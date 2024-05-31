@@ -56,6 +56,8 @@ function shuffleRateLimitTrim(res: PostResult[], log: any[], limit: number, seed
 }
 
 const mixInPosts = async (seed: number, rate: number, originalPosts: { author: string, uri: string }[] | undefined, postsToMixIn: { author: string, uri: string }[] | undefined) => {
+    shuffleArray(originalPosts);
+    shuffleArray(postsToMixIn);
     if (!originalPosts || !postsToMixIn) {
         return [];
     }

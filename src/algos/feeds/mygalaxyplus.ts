@@ -15,20 +15,20 @@ export const handler = async (ctx: AppContext, params: QueryParams, userDid: str
     firstPageCommunities: 5,
     firstPageFollowsRate: 5,
     firstPagePostLookupMultiplier: 20,
-    firstPageRandomizeWithinRateLimit: true,
+    firstPageRandomizeWithinRateLimit: false,
     //main feed
     homeHNGravity: 4,
     homeSkipReplies: false,
     homeCommunities: 5,
     homeFollowsRate: 5,
     homePostLookupMultiplier: 3,
-    homeRandomizeWithinRateLimit: true,
+    homeRandomizeWithinRateLimit: false,
     //discover mix in
     discoverHNGravity: 3,
     discoverSkipReplies: true,
     discoverCommunities: 7,
     discoverPostsRate: 5,
-    discoverRandomizeWithinRateLimit: true,
+    discoverRandomizeWithinRateLimit: false,
     //input communities
     communityConfig: {
       mode: "nebula",
