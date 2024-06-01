@@ -181,7 +181,9 @@ export default class Bot {
                         const links = await this.resolveHandles(posts.slice(0, 5).map(post => post.author));
 
                         replyText = `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
-👯Polulation: ${communityRes?.size}
+
+                        👯Polulation: ${communityRes?.size}
+
 💬Top recent posters: ${links}`;
                     }
                 }
@@ -240,10 +242,16 @@ export default class Bot {
                     dicoverCommunities.push(...discoverSlice.topCommunitiesByLikes.communities, ...discoverSlice.exploreCommunitiesByLikes.communities);
 
                     replyText = `📍You: ${communities.userCommunity.community}
+
 📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
+
 🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities}
+
 🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities}
-🤖💡: !skygraphbot showcommunity ${communities.userCommunity.community}
+
+🤖💡:
+
+!skygraphbot showcommunity ${communities.userCommunity.community}
 `;
 
                 }
