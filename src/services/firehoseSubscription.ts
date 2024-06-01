@@ -1,9 +1,10 @@
+import { BotCommand } from '../db/schema'
 import {
   OutputSchema as RepoEvent,
   isCommit,
-} from './lexicon/types/com/atproto/sync/subscribeRepos'
-import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
-import fetch from 'node-fetch';
+} from '../lexicon/types/com/atproto/sync/subscribeRepos'
+import { FirehoseSubscriptionBase, getOpsByType } from '../util/subscription'
+import Bot from './bot'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -40,6 +41,51 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           indexedAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
         }
       })
+
+    const getBotInstruction = (text: string): { command: string, value?: string } | undefined => {
+      if (!text.startsWith(Bot.keyword)) {
+        return undefined;
+      } else {
+        const split = text.split(' ');
+        if (!split || split.length < 2) {
+          return undefined;
+        }
+
+        console.log(split);
+        const command = split[1];
+        console.log(`Command exists: ${command}:${Bot.commands.includes(command)}`);
+        const value = split[2];
+        console.log(value);
+        const result: { command: string, value?: string } = { command }
+        if (value) {
+          result.value = value;
+        }
+        return Bot.commands.includes(command) ? result : undefined;
+      }
+    }
+    const botInstructions: BotCommand[] = ops.posts.creates
+      .filter((create) => {
+        // all posts
+        return getBotInstruction(create.record.text.toLowerCase()) !== undefined;
+      })
+      .map((create) => {
+        // map posts to db row
+        const postText = create.record.text.toLowerCase();
+        const instruction: any = getBotInstruction(postText);
+        const insert: BotCommand = {
+          user: create.author,
+          uri: create.uri,
+          command: instruction.command,
+          status: 'created',
+          createdAt: new Date(create.record.createdAt).toISOString().substring(0, 19),
+        }
+
+        if (instruction.value) {
+          insert.value = instruction.value;
+        }
+
+        return insert;
+      });
 
     // const repostsToDelete = ops.reposts.deletes.map((del) => del.uri)
     // const repostsToCreate = ops.reposts.creates
@@ -124,6 +170,11 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           .ignore()
           .execute()
       }
+    }
+    if (botInstructions.length > 0) {
+      await this.db.insertInto('bot_commands')
+        .values(botInstructions)
+        .execute();
     }
     // if (repostsToDelete.length > 0) {
     //   await this.db

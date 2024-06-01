@@ -2,12 +2,12 @@ import http from 'http'
 import events from 'events'
 import express from 'express'
 import { DidResolver, MemoryCache } from '@atproto/identity'
-import { createServer } from './lexicon'
-import feedGeneration from './methods/feed-generation'
-import describeGenerator from './methods/describe-generator'
-import { createDb, Database, migrateToLatest } from './db'
-import { AppContext, Config } from './config'
-import wellKnown from './well-known'
+import { createServer } from '../lexicon'
+import feedGeneration from '../methods/feed-generation'
+import describeGenerator from '../methods/describe-generator'
+import { createDb, Database, migrateToLatest } from '../db'
+import { AppContext, Config } from '../config'
+import wellKnown from '../well-known'
 import AtpAgent from '@atproto/api'
 
 export class FeedGenerator {
@@ -65,6 +65,7 @@ export class FeedGenerator {
   }
 
   async start(): Promise<http.Server> {
+    await migrateToLatest(this.db)
     this.server = this.app.listen(this.cfg.port, this.cfg.listenhost)
     await events.once(this.server, 'listening')
     return this.server

@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import Indexer from '../indexer'
+import Indexer from '../services/indexer'
 
 const run = async () => {
   dotenv.config()

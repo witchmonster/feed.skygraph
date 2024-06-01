@@ -4,8 +4,9 @@ export type DatabaseSchema = {
   community: Community
   likescore: LikeScore
   postrank: PostRank
-  sub_state: SubState,
+  sub_state: SubState
   feed_usage: Usage
+  bot_commands: BotCommand
 }
 
 export type Post = {
@@ -31,6 +32,15 @@ export type Usage = {
   refreshcount: number,
   lastUpdated: string,
   last_post_output?: number,
+}
+
+export type BotCommand = {
+  user: string,
+  command: string,
+  value?: string,
+  status: "created" | "processing" | "finished" | "error",
+  uri: string,
+  createdAt: string,
 }
 
 export type LikeScore = {

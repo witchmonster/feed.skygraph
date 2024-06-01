@@ -1,5 +1,6 @@
 import { sql } from 'kysely'
 import { AppContext } from '../../config'
+import { Database } from '../../db'
 
 enum Prefixes {
     Gigacluster = 'f',
@@ -41,7 +42,7 @@ interface RankedRequestConfig {
     limit: number,
 }
 
-const autoPickCommunity = async (ctx: AppContext, log: any[], communitiesRes: any) => {
+const autoPickCommunity = async (db: Database, log: any[], communitiesRes: any) => {
     // console.log("auto-picking user community")
     const communityCodes: string[] = [
         (communitiesRes.rows[0] as any)?.f,
@@ -52,7 +53,7 @@ const autoPickCommunity = async (ctx: AppContext, log: any[], communitiesRes: an
         (communitiesRes.rows[0] as any)?.o];
 
 
-    const communities = await ctx.db.selectFrom('community')
+    const communities = await db.selectFrom('community')
         .selectAll()
         .where('community', 'in', communityCodes)
         .orderBy('community asc')
@@ -93,18 +94,18 @@ const autoPickCommunity = async (ctx: AppContext, log: any[], communitiesRes: an
     return perfectCommunity;
 }
 
-const getUserCommunities = async (ctx: AppContext, log: any[], userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
+const getUserCommunities = async (db: Database, log: any[], userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
     // console.log("getting user community");
     const mode = config?.mode ?? "auto";
     userDid = userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
-    const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(ctx.db);
+    const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(db);
 
     let userCommunity;
     let topLikedCommunityPrefix;
     let expandCommunityPrefix;
 
     const userHasCommunities = communitiesRes && communitiesRes.rows && communitiesRes.rows.length > 0;
-    const exploreCommunity = userHasCommunities ? await autoPickCommunity(ctx, log, communitiesRes) : { community: 's574', prefix: 's' };
+    const exploreCommunity = userHasCommunities ? await autoPickCommunity(db, log, communitiesRes) : { community: 's574', prefix: 's' };
 
     let minCommunities;
     let trustedFriendsLimit;
@@ -131,7 +132,7 @@ const getUserCommunities = async (ctx: AppContext, log: any[], userDid: string, 
     const expandDidToCommunityDotPrefix: any = `did_to_community.${expandCommunityPrefix}`;
 
     if (config?.totalCommunities && config?.totalCommunities > 0) {
-        const topLikedCommunitiesQuery = ctx.db.selectFrom('likescore')
+        const topLikedCommunitiesQuery = db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select([topLikedCommunityDotPrefix, 'likescore.subject'])
             //choose communities by poasters user liked most
@@ -151,7 +152,7 @@ const getUserCommunities = async (ctx: AppContext, log: any[], userDid: string, 
 
         if (topCommunitiesByLikes.length < minCommunities) {
             if (topCommunitiesByLikes.length > 0) {
-                const exploreCommunitiesQuery = ctx.db.selectFrom('likescore')
+                const exploreCommunitiesQuery = db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
                     .select([expandDidToCommunityDotPrefix])
                     //choose "top trusted friends" from poasters user liked most
@@ -337,9 +338,10 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
     return await ranked.execute();
 }
 
-const sliceCommunityResponse = (res: CommunityResponse, maxCount: number) => {
-    const topLikedSlice = res.topCommunitiesByLikes.communities.slice(0, maxCount);
-    const explorePortion = maxCount - topLikedSlice.length;
+const sliceCommunityResponse = (res: CommunityResponse, maxCount: number, skipFirst?: number) => {
+    const maxCountWithExcluded = skipFirst ? maxCount - skipFirst : maxCount;
+    const topLikedSlice = res.topCommunitiesByLikes.communities.slice(skipFirst, maxCount);
+    const explorePortion = maxCountWithExcluded - topLikedSlice.length;
     return {
         ...res, topCommunitiesByLikes: {
             communities: topLikedSlice,

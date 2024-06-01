@@ -77,7 +77,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
     let lastDiscoverRank;
     let followsRate;
     try {
-        const communityResponse: CommunityResponse = await getUserCommunities(ctx, log, userDid, config.communityConfig);
+        const communityResponse: CommunityResponse = await getUserCommunities(ctx.db, log, userDid, config.communityConfig);
         const totalCommunities = communityResponse.topCommunitiesByLikes.communities.length + communityResponse.exploreCommunitiesByLikes.communities.length;
         const notEnoughCommunities = totalCommunities < config.communityConfig.totalCommunities;
         if (!existingHomeRank || !existingDiscoverRank) {
@@ -111,7 +111,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             lastHomeRank = homeRes?.at(-1).rank;
             //discover part
             log.push(`Generating discover posts...`);
-            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, config.discoverCommunities);
+            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, config.discoverCommunities, config.homeCommunities);
             log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
             const discoverRes: any = await getRankedPosts(ctx, {
                 existingRank: existingDiscoverRank,

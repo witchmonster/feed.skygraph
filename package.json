@@ -9,11 +9,9 @@
   "scripts": {
     "publishFeed": "ts-node scripts/publishFeedGen.ts",
     "start": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/index.ts",
-    "stop": "ts-node src/index.ts",
     "feedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/feed.ts",
-    "feedDown": "ts-node src/feed.ts",
+    "botUp": "ts-node src/cmd/bot.ts",
     "testfeedUp": "NODE_OPTIONS='--max-old-space-size=2048' ts-node src/cmd/testfeed.ts",
-    "testfeedDown": "ts-node src/testfeed.ts",
     "build": "tsc"
   },
   "dependencies": {
@@ -25,12 +23,14 @@
     "@atproto/xrpc-server": "^0.3.2",
     "@types/node-fetch": "^2.6.11",
     "better-sqlite3": "^8.3.0",
+    "cron": "^3.1.7",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "kysely": "^0.27.2",
     "multiformats": "^9.9.0",
     "mysql2": "^3.9.7",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "types": "^0.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.4",

@@ -1,6 +1,6 @@
-import { createDb, Database, migrateToLatest } from './db'
-import { FirehoseSubscription } from './subscription'
-import { IndexerConfig } from './config'
+import { createDb, Database, migrateToLatest } from '../db'
+import { FirehoseSubscription } from './firehoseSubscription'
+import { IndexerConfig } from '../config'
 
 export class Indexer {
   public db: Database

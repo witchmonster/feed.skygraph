@@ -349,17 +349,67 @@ migrations['012'] = {
   },
 };
 
-// migrations['013'] = {
-//   async up(db: Kysely<MysqlDialect>) {
-//     await db.schema
-//       .createTable('feed_overrides')
-//       .addColumn('user', 'varchar(255)', (col) => col.notNull())
-//       .addColumn('feed', 'varchar(16)', (col) => col.notNull())
-//       .addColumn('c_exclude', 'json')
-//       .addPrimaryKeyConstraint('primary_key', ['user', 'feed'])
-//       .execute();
-//   },
-//   async down(db: Kysely<MysqlDialect>) {
-//     await db.schema.dropTable('feed_overrides').execute()
-//   },
-// };
+migrations['013'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .createTable('feed_overrides')
+      .addColumn('user', 'varchar(255)', (col) => col.notNull())
+      .addColumn('feed', 'varchar(16)', (col) => col.notNull())
+      .addColumn('optout', 'boolean')
+      .addColumn('c_exclude', 'json')
+      .addColumn('did_exclude', 'json')
+      .addPrimaryKeyConstraint('primary_key', ['user', 'feed'])
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.dropTable('feed_overrides').execute()
+  },
+};
+
+migrations['014'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .createTable('bot_commands')
+      .addColumn('user', 'varchar(255)', (col) => col.notNull())
+      .addColumn('uri', 'varchar(255)', (col) => col.notNull())
+      .addColumn('command', 'varchar(255)', (col) => col.notNull())
+      .addColumn('status', sql`enum('created', 'processing', 'finished', 'error')`, (col) => col.notNull())
+      .addColumn('createdAt', 'varchar(255)', (col) => col.notNull())
+      .addPrimaryKeyConstraint('primary_key', ['user', 'uri'])
+      .execute();
+    try {
+      await db.schema
+        .createIndex('idx_bot_commands_command')
+        .on('post')
+        .column('command')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_bot_commands_command, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_bot_commands_status')
+        .on('post')
+        .column('status')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_bot_commands_status, already exists`);
+    }
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.dropTable('bot_commands').execute();
+    await db.schema.dropIndex('idx_bot_commands_command').execute();
+  },
+};
+
+migrations['015'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('bot_commands')
+      .addColumn('value', 'varchar(255)')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('bot_commands').dropColumn('value').execute();
+  },
+};
