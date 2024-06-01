@@ -184,7 +184,8 @@ export default class Bot {
 
 👯Polulation: ${communityRes?.size}
 
-💬Top recent posters: ${links}`;
+💬Top recent posters:
+${links}`;
                     }
                 }
 
