@@ -182,7 +182,7 @@ export default class Bot {
 
                         replyText = `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
 
-👯Polulation: ${communityRes?.size}
+👯Population: ${communityRes?.size}
 
 💬Top recent posters:
 ${links}`;
