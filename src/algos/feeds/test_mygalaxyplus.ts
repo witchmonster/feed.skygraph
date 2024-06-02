@@ -30,7 +30,8 @@ export const config: MyCommunityPlusTemplateConfig = {
   discoverRandomizeWithinRateLimit: false,
   //input communities
   mode: "nebula",
-  trustedFriendsLimit: 5
+  trustedFriendsLimit: 5,
+  feedKey: "skygraph"
 }
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {

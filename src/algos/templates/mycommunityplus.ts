@@ -45,7 +45,8 @@ export interface MyCommunityPlusTemplateConfig {
 
     //input communities
     mode: 'auto' | 'constellation' | 'nebula'
-    trustedFriendsLimit: number
+    trustedFriendsLimit: number,
+    feedKey: string
 }
 
 export const generateCommunityPlusFeed = async (feedContext: FeedContext, config: MyCommunityPlusTemplateConfig) => {
@@ -87,7 +88,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             trustedFriendsLimit: config.trustedFriendsLimit,
             homeCommunities: config.homeCommunities,
             discoverCommunities: config.discoverCommunities,
-            feed: config.shortName
+            feed: config.feedKey
         });
         //handle overrides
         const homeCommunities = communityResponse.feedOverrides?.home_communities ?? config.homeCommunities;
