@@ -102,7 +102,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
 
     const notOptedOut = !current || !current.optout;
 
-    // console.log("getting user community");
+    // console.log(`optout: ${!notOptedOut}`);
     const mode = config?.mode ?? "auto";
     userDid = userDid && notOptedOut ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(db);
@@ -265,10 +265,13 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             sql<string>`((score-1)*(case when 'post.replyParent' is not null and rand(${seed}) <= ${repliesRatio} then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        .innerJoin('feed_overrides', 'post.author', 'feed_overrides.user')
+        .leftJoin('feed_overrides', 'post.author', 'feed_overrides.user')
         .where(lookupCommunities)
         .where('post.indexedAt', '>', (sql`DATE_SUB(now(), INTERVAL 1 DAY)` as any))
-        .where('feed_overrides.optout', '<>', true)
+        .where((eb) => eb.or([
+            eb('feed_overrides.optout', 'is', null),
+            eb('feed_overrides.optout', '<>', true)
+        ]))
         .orderBy('rank', 'desc')
         .limit(limit);
 
@@ -320,10 +323,13 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
             'post.uri', 'post.author', 'post.indexedAt', ...prefixes,
             sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
-        .innerJoin('feed_overrides', 'post.author', 'feed_overrides.user')
+        .leftJoin('feed_overrides', 'post.author', 'feed_overrides.user')
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
-        .where('feed_overrides.optout', '<>', true)
         .select(['postrank.score'])
+        .where((eb) => eb.or([
+            eb('feed_overrides.optout', 'is', null),
+            eb('feed_overrides.optout', '<>', true)
+        ]))
         .orderBy('rank', 'desc');
 
     if (skipReplies) {
