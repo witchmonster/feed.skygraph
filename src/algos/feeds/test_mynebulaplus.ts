@@ -10,7 +10,8 @@ export const config: MyCommunityPlusTemplateConfig = {
     //first page
     firstPageHNGravity: 4,
     firstPageReplyRatio: 0.2,
-    firstPageMinQuality: 3,
+    firstPageHomeMinQuality: 3,
+    firstPageDiscoverMinQuality: 10,
     firstPageCommunities: 10,
     firstPageFollowsRate: 5,
     firstPagePostLookupMultiplier: 20,

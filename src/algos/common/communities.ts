@@ -292,7 +292,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             .where('postrank.score', '>=', minQuality)
 
     }
-    if (noReplies || communityResponse.feedOverrides?.hide_replies) {
+    if (noReplies || communityResponse.feedOverrides?.hide_replies || repliesRatio === 0) {
         firstPageQuery = firstPageQuery
             .where('post.replyParent', 'is', null)
     }

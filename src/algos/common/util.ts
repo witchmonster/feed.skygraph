@@ -45,7 +45,7 @@ function shuffleRateLimitTrim(res: PostResult[], log: any[], limit: number, seed
             log.push(`rate limited to: ${rateLimitedRes.length}`);
             return rateLimitedRes.slice(0, limit);
         } else {
-            log.push(`rate limited skipped: ${rateLimitedRes.length}`);
+            log.push(`rate limit skipped: ${rateLimitedRes.length}`);
             return res.slice(0, limit);
         }
     } catch (err) {

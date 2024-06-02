@@ -10,7 +10,8 @@ export const config: MyCommunityPlusTemplateConfig = {
   //first page
   firstPageHNGravity: 4,
   firstPageReplyRatio: 0.2,
-  firstPageMinQuality: 5,
+  firstPageHomeMinQuality: 5,
+  firstPageDiscoverMinQuality: 10,
   firstPageCommunities: 7,
   firstPageFollowsRate: 5,
   firstPagePostLookupMultiplier: 20,
@@ -25,13 +26,13 @@ export const config: MyCommunityPlusTemplateConfig = {
   //discover mix in
   discoverHNGravity: 3,
   discoverSkipReplies: true,
-  discoverCommunities: 10,
+  discoverCommunities: 12,
   discoverPostsRate: 5,
   discoverRandomizeWithinRateLimit: false,
   //input communities
   communityConfig: {
     mode: "nebula",
-    totalCommunities: 10,
+    totalCommunities: 12,
     trustedFriendsLimit: 5,
     feed: "skygraph"
   }
