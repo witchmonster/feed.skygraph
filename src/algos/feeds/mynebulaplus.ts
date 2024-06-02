@@ -3,11 +3,10 @@ import { AppContext } from '../../config'
 import { MyCommunityPlusTemplateConfig, generateCommunityPlusFeed } from '../templates/mycommunityplus'
 
 export const shortname = 'nebula_plus'
-export const feedname = "My Nebula+"
 
 export const config: MyCommunityPlusTemplateConfig = {
     shortName: shortname,
-    feedName: feedname,
+    feedName: "My Nebula+",
     //first page
     firstPageHNGravity: 4,
     firstPageReplyRatio: 0.2,

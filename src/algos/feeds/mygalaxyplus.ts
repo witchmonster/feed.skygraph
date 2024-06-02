@@ -3,11 +3,10 @@ import { AppContext } from '../../config'
 import { MyCommunityPlusTemplateConfig, generateCommunityPlusFeed } from '../templates/mycommunityplus'
 
 export const shortname = 'skygraph'
-export const feedname = "My Galaxy+"
 
 export const config: MyCommunityPlusTemplateConfig = {
   shortName: shortname,
-  feedName: feedname,
+  feedName: "My Galaxy+",
   //first page
   firstPageHNGravity: 4,
   firstPageReplyRatio: 0.2,

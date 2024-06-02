@@ -95,9 +95,16 @@ const autoPickCommunity = async (db: Database, log: any[], communitiesRes: any) 
 }
 
 const getUserCommunities = async (db: Database, log: any[], userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
+    const current = await db.selectFrom('feed_overrides')
+        .selectAll()
+        .where('user', '=', userDid)
+        .executeTakeFirst();
+
+    const notOptedOut = !current || !current.optout;
+
     // console.log("getting user community");
     const mode = config?.mode ?? "auto";
-    userDid = userDid ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
+    userDid = userDid && notOptedOut ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(db);
 
     let userCommunity;
@@ -258,8 +265,10 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             sql<string>`((score-1)*(case when 'post.replyParent' is not null and rand(${seed}) <= ${repliesRatio} then 1 else 0 end)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
+        .innerJoin('feed_overrides', 'post.author', 'feed_overrides.user')
         .where(lookupCommunities)
         .where('post.indexedAt', '>', (sql`DATE_SUB(now(), INTERVAL 1 DAY)` as any))
+        .where('feed_overrides.optout', '<>', true)
         .orderBy('rank', 'desc')
         .limit(limit);
 
@@ -311,7 +320,9 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
             'post.uri', 'post.author', 'post.indexedAt', ...prefixes,
             sql<string>`((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,${gravity}))`.as('rank')
         ])
+        .innerJoin('feed_overrides', 'post.author', 'feed_overrides.user')
         .innerJoin('postrank', 'post.uri', 'postrank.uri')
+        .where('feed_overrides.optout', '<>', true)
         .select(['postrank.score'])
         .orderBy('rank', 'desc');
 

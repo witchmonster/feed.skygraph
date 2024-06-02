@@ -3,15 +3,14 @@ import { AppContext } from '../../config'
 import { MyCommunityPlusTemplateConfig, generateCommunityPlusFeed } from '../templates/mycommunityplus'
 
 export const shortname = 't_galaxy'
-export const feedname = "My Galaxy+ (test)"
 
 export const config: MyCommunityPlusTemplateConfig = {
   shortName: shortname,
-  feedName: feedname,
+  feedName: "My Galaxy+ (test)",
   //first page
   firstPageHNGravity: 4,
   firstPageReplyRatio: 0.2,
-  firstPageMinQuality: 3,
+  firstPageMinQuality: 5,
   firstPageCommunities: 5,
   firstPageFollowsRate: 5,
   firstPagePostLookupMultiplier: 20,

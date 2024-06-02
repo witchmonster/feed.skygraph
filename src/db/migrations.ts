@@ -355,7 +355,7 @@ migrations['013'] = {
       .createTable('feed_overrides')
       .addColumn('user', 'varchar(255)', (col) => col.notNull())
       .addColumn('feed', 'varchar(16)', (col) => col.notNull())
-      .addColumn('optout', 'boolean')
+      .addColumn('optout', 'boolean', (col) => col.defaultTo(false))
       .addColumn('c_exclude', 'json')
       .addColumn('did_exclude', 'json')
       .addPrimaryKeyConstraint('primary_key', ['user', 'feed'])
@@ -411,5 +411,19 @@ migrations['015'] = {
   },
   async down(db: Kysely<MysqlDialect>) {
     await db.schema.alterTable('bot_commands').dropColumn('value').execute();
+  },
+};
+
+migrations['016'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('feed_overrides')
+      .addColumn('hide_replies', 'boolean')
+      .addColumn('hide_follows', 'boolean')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('feed_overrides').dropColumn('hide_replies').execute();
+    await db.schema.alterTable('feed_overrides').dropColumn('hide_follows').execute();
   },
 };

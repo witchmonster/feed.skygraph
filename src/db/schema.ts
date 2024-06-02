@@ -7,6 +7,7 @@ export type DatabaseSchema = {
   sub_state: SubState
   feed_usage: Usage
   bot_commands: BotCommand
+  feed_overrides: FeedOverrides
 }
 
 export type Post = {
@@ -32,6 +33,16 @@ export type Usage = {
   refreshcount: number,
   lastUpdated: string,
   last_post_output?: number,
+}
+
+export type FeedOverrides = {
+  user: string,
+  feed: string,
+  optout: boolean,
+  hide_replies?: boolean,
+  hide_follows?: boolean,
+  c_exclude?: string,
+  did_exclude?: string,
 }
 
 export type BotCommand = {

@@ -7,13 +7,15 @@ import type {
 import { AtUri, BskyAgent, RichText } from "@atproto/api";
 import { createDb, Database, migrateToLatest } from '../db'
 import { CronJob } from 'cron';
-import { BotCommand } from "../db/schema";
+import { BotCommand, FeedOverrides } from "../db/schema";
 import { ReplyRef } from "../lexicon/types/app/bsky/feed/post";
 import { sql } from "kysely";
 import { DidResolver, MemoryCache } from "@atproto/identity";
 import { getUserCommunities, sliceCommunityResponse } from "../algos/common/communities";
-import { config as mygalaxyPlusConfig, feedname as mygalaxyPlusName } from "../algos/feeds/mygalaxyplus";
-import { config as myNebulaPlusConfig, feedname as mynebulaPlusName } from "../algos/feeds/mynebulaplus";
+import { config as mygalaxyPlusConfig } from "../algos/feeds/mygalaxyplus";
+import { config as myNebulaPlusConfig } from "../algos/feeds/mynebulaplus";
+import { text } from "stream/consumers";
+import { shortname } from "../algos/feeds/test_mygalaxyplus";
 
 
 const BSKY_SERVICE = "https://bsky.social";
@@ -41,13 +43,15 @@ const communityHearts = {
 const feedMap = {
     "mygalaxy+": {
         config: mygalaxyPlusConfig,
-        name: mygalaxyPlusName,
+        name: mygalaxyPlusConfig.feedName,
+        shortname: mygalaxyPlusConfig.shortName,
         communityNoun: "Nebula",
         communityPlural: "Nebulas"
     },
     "mynebula+": {
         config: myNebulaPlusConfig,
-        name: mynebulaPlusName,
+        name: myNebulaPlusConfig.feedName,
+        shortname: myNebulaPlusConfig.shortName,
         communityNoun: "Constellation",
         communityPlural: "Constellations"
     }
@@ -64,8 +68,9 @@ export default class Bot {
     cronJob: CronJob;
     didResolver: DidResolver;
 
+    // static keyword: string = "!skygraphtest";
     static keyword: string = "!skygraphbot";
-    static commands = ['whereami', 'showcommunity', 'showfeed'];
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -75,17 +80,16 @@ export default class Bot {
 
     botCommands = {
         "whereami": async (command: BotCommand) => {
-            try {
+            const whereami = async () => {
                 const communities = await this.db.selectFrom('did_to_community')
                     .select(['f', 's', 'c', 'g', 'e', 'o'])
                     .where('did', '=', command.user)
                     .executeTakeFirst();
 
-                let replyText;
                 if (!communities) {
-                    replyText = `I'm sorry, your account was not found in any of the communities`
+                    return `I'm sorry, your account was not found in any of the communities`
                 } else {
-                    replyText = `Your communities:
+                    return `Your communities:
 
     🖤 Gigacluster: ${communities.f}
     💚 Supercluster: ${communities.s}
@@ -102,132 +106,140 @@ export default class Bot {
 
 !skygraphbot showfeed mynebula+`;
                 }
-
-                const replyToUrip = new AtUri(command.uri)
-                const replyTo = await this.#agent.getPost({
-                    repo: replyToUrip.host,
-                    rkey: replyToUrip.rkey
-                })
-                const parentRef = {
-                    uri: replyTo.uri,
-                    cid: replyTo.cid
-                }
-
-                await this.reply(replyText, {
-                    root: replyTo.value.reply?.root || parentRef,
-                    parent: parentRef
-                });
-
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'finished'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
-            } catch (err) {
-                console.log(err);
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'error'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
             }
+
+            await this.executeAndReply(whereami, command);
+
+        },
+        "opt": async (command: BotCommand) => {
+            const optedOutText = `You are opted out of SkyGraph feeds.
+
+Your content won't be shown in My Nebula+/My Galaxy+ feeds and you won't be shown personalized content.
+
+To opt out of SkyGraph dataset and map: @optout.skygraph.art
+
+To opt back in:
+
+!skygraphbot opt in`;
+
+            const optedInText = `You are opted in to SkyGraph My Nebula+/My Galaxy+ feeds.
+
+Both feeds are showing you personalized content based on your likes and prior interactions.
+
+To opt out:
+
+!skygraphbot opt out`;
+            const optBackInText = `Welcome back! You've been opted back in to SkyGraph My Nebula+/My Galaxy+ feeds.`;
+            if (command.value !== 'in' && command.value !== 'out' && command.value !== 'status') {
+                return `I'm sorry, this is not a valid command. Please use 'opt status', 'opt in' or 'opt out'.`
+            }
+            const opt = async () => {
+                const current = await this.db.selectFrom('feed_overrides')
+                    .selectAll()
+                    .where('user', '=', command.user)
+                    .executeTakeFirst();
+
+                if (current && current.optout && command.value === 'out') {
+                    return optedOutText;
+                }
+                if (current && !current.optout && command.value === 'in') {
+                    return optedInText;
+                }
+                if (command.value === 'status') {
+                    return current
+                        ? current.optout ? optedOutText : optedInText
+                        : optedInText
+
+                }
+                const optOut = command.value === 'out' ? true : false;
+                const values: FeedOverrides[] = [];
+                Object.values(feedMap).forEach(feedConf => {
+                    values.push({
+                        user: command.user,
+                        feed: feedConf.shortname,
+                        optout: optOut,
+                    });
+                });
+                const res = await this.db.insertInto('feed_overrides')
+                    .values(values)
+                    .onDuplicateKeyUpdate({
+                        optout: optOut
+                    })
+                    .executeTakeFirst();
+                console.log('' + res.numInsertedOrUpdatedRows)
+                return '' + res.numInsertedOrUpdatedRows === '0' ? `No changes made.`
+                    : command.value === 'out' ? optedOutText
+                        : command.value === 'in' ? optBackInText
+                            : `Something went wrong, try again.`;
+            }
+
+            await this.executeAndReply(opt, command);
 
         },
         "showcommunity": async (command: BotCommand) => {
-            try {
+            const showcommunity = async () => {
+
                 const community = command.value;
                 const prefix: any = community?.substring(0, 1);
 
-                let replyText;
                 if (!community || !prefix) {
-                    replyText = `I'm sorry, could not find this community.`
-                } else {
-                    const communityRes = await this.db.selectFrom('community')
-                        .selectAll()
-                        .where('community', '=', community)
-                        .executeTakeFirst();
+                    return `I'm sorry, could not find this community.`
+                }
 
-                    if (!communityRes) {
-                        replyText = `I'm sorry, could not find this community.`
-                    } else {
+                const communityRes = await this.db.selectFrom('community')
+                    .selectAll()
+                    .where('community', '=', community)
+                    .executeTakeFirst();
 
-                        const posts = await this.db.selectFrom('post')
-                            .innerJoin('postrank', 'post.uri', 'postrank.uri')
-                            .select(({ fn, val, ref }) => [
-                                'post.author', 'post.uri',
-                                sql<string>`sum((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
-                            ])
-                            .where(prefix, '=', community)
-                            .limit(5)
-                            .groupBy('post.author')
-                            .orderBy('rank', 'desc')
-                            .execute();
+                if (!communityRes) {
+                    return `I'm sorry, could not find this community.`
+                }
 
-                        // const postTexts = posts.map(async post => {
-                        //     const postToUrip = new AtUri(post.uri)
-                        //     const contentRes = await this.#agent.getPost({
-                        //         repo: postToUrip.host,
-                        //         rkey: postToUrip.rkey
-                        //     });
-                        //     return contentRes.value.text;
-                        // });
+                const posts = await this.db.selectFrom('post')
+                    .innerJoin('postrank', 'post.uri', 'postrank.uri')
+                    .select(({ fn, val, ref }) => [
+                        'post.author', 'post.uri',
+                        sql<string>`sum((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+                    ])
+                    .where(prefix, '=', community)
+                    .limit(5)
+                    .groupBy('post.author')
+                    .orderBy('rank', 'desc')
+                    .execute();
 
-                        // const wordcloudLink = `${wordcloud}${postTexts[0]}`;
+                const likes = await this.db.selectFrom('likescore')
+                    .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
+                    .select(({ fn, val, ref }) => [
+                        sql<string>`sum(likescore.score)`.as('rank')
+                    ])
+                    .where('likescore.author', '=', command.user)
+                    .where(prefix, '=', community)
+                    .groupBy(prefix)
+                    .executeTakeFirst();
 
-                        const links = await this.resolveHandles(posts.slice(0, 5).map(post => post.author));
+                const links = await this.resolveHandles(posts.slice(0, 5).map(post => post.author));
+                const likesFromYou = likes ? `
+❤️Your likes: ${likes?.rank}
+` : '';
 
-                        replyText = `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
+                return `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
 
+🔢Code: ${communityRes.community}
+${likesFromYou}
 👯Population: ${communityRes?.size}
 
 💬Top recent posters:
 ${links}`;
-                    }
-                }
 
-                const replyToUrip = new AtUri(command.uri)
-                const replyTo = await this.#agent.getPost({
-                    repo: replyToUrip.host,
-                    rkey: replyToUrip.rkey
-                })
-                const parentRef = {
-                    uri: replyTo.uri,
-                    cid: replyTo.cid
-                }
-
-                await this.reply(replyText, {
-                    root: replyTo.value.reply?.root || parentRef,
-                    parent: parentRef
-                });
-
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'finished'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
-            } catch (err) {
-                console.log(err);
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'error'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
             }
+
+            await this.executeAndReply(showcommunity, command);
 
         },
         "showfeed": async (command: BotCommand) => {
-            try {
-                let replyText;
+            const showfeed = async () => {
                 if (!command.value || !feedMap[command.value]) {
-                    replyText = `I'm sorry, no such feed exists.`
+                    return `I'm sorry, no such feed exists.`
                 } else {
                     const communities = await getUserCommunities(this.db, [], command.user, feedMap[command.value].config.communityConfig)
 
@@ -242,53 +254,22 @@ ${links}`;
                     }
                     dicoverCommunities.push(...discoverSlice.topCommunitiesByLikes.communities, ...discoverSlice.exploreCommunitiesByLikes.communities);
 
-                    replyText = `📍You: ${communities.userCommunity.community}
+                    return `📍You: ${communities.userCommunity.community}
 
-📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
+    📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
 
-🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities}
+    🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities}
 
-🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities}
+    🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities}
 
-🤖💡:
+    🤖💡:
 
-!skygraphbot showcommunity ${communities.userCommunity.community}
-`;
-
+    !skygraphbot showcommunity ${communities.userCommunity.community}
+    `;
                 }
+            };
 
-                const replyToUrip = new AtUri(command.uri)
-                const replyTo = await this.#agent.getPost({
-                    repo: replyToUrip.host,
-                    rkey: replyToUrip.rkey
-                })
-                const parentRef = {
-                    uri: replyTo.uri,
-                    cid: replyTo.cid
-                }
-
-                await this.reply(replyText, {
-                    root: replyTo.value.reply?.root || parentRef,
-                    parent: parentRef
-                });
-
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'finished'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
-            } catch (err) {
-                console.log(err);
-                await this.db.updateTable('bot_commands')
-                    .set({
-                        status: 'error'
-                    })
-                    .where('user', '=', command.user)
-                    .where('uri', '=', command.uri)
-                    .execute();
-            }
+            await this.executeAndReply(showfeed, command);
 
         }
     };
@@ -323,7 +304,50 @@ ${data.handle}`);
         return handles;
     }
 
-    async reply(
+    async executeAndReply(
+        getReplyText: () => Promise<string>,
+        command: { user: string, uri: string },
+        embedImage?: AppBskyEmbedImages.Main
+    ) {
+        try {
+            const replyToUrip = new AtUri(command.uri)
+            const replyTo = await this.#agent.getPost({
+                repo: replyToUrip.host,
+                rkey: replyToUrip.rkey
+            })
+            const parentRef = {
+                uri: replyTo.uri,
+                cid: replyTo.cid
+            }
+
+            const replyText = await getReplyText();
+
+            await this.doReply(replyText, {
+                root: replyTo.value.reply?.root || parentRef,
+                parent: parentRef,
+                embedImage: embedImage
+            });
+
+            await this.db.updateTable('bot_commands')
+                .set({
+                    status: 'finished'
+                })
+                .where('user', '=', command.user)
+                .where('uri', '=', command.uri)
+                .execute();
+        } catch (err) {
+            console.log(err);
+            await this.db.updateTable('bot_commands')
+                .set({
+                    status: 'error'
+                })
+                .where('user', '=', command.user)
+                .where('uri', '=', command.uri)
+                .execute();
+        }
+    }
+
+    async doReply(
         text: string,
         reply: ReplyRef,
         embedImage?: AppBskyEmbedImages.Main

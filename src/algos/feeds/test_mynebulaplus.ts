@@ -4,11 +4,9 @@ import { MyCommunityPlusTemplateConfig, generateCommunityPlusFeed } from '../tem
 
 export const shortname = 't_nebula'
 
-export const feedname = "My Nebula+ (test)"
-
 export const config: MyCommunityPlusTemplateConfig = {
     shortName: shortname,
-    feedName: feedname,
+    feedName: "My Nebula+ (test)",
     //first page
     firstPageHNGravity: 4,
     firstPageReplyRatio: 0.2,
