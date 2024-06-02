@@ -195,7 +195,7 @@ ${Bot.keyword} whereami
 ${Bot.keyword} opt [out/in]
 ${Bot.keyword} status [mynebula+/mygalaxy+]
 ${Bot.keyword} showfeed [mynebula+/mygalaxy+]
-${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
+${Bot.keyword} follows[on/off] [mynebula+/mygalaxy+]
 ${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
 ${Bot.keyword} showcommunity [code]`
             }
