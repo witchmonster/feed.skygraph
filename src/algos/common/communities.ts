@@ -24,6 +24,7 @@ interface CommunityRequestConfig {
     mode?: 'auto' | 'constellation' | 'nebula'
     totalCommunities: number
     trustedFriendsLimit: number
+    feed?: string
 }
 
 interface FirstPageRequestConfig {
@@ -97,15 +98,20 @@ const autoPickCommunity = async (db: Database, log: any[], communitiesRes: any) 
 }
 
 const getUserCommunities = async (db: Database, log: any[], userDid: string, config?: CommunityRequestConfig): Promise<CommunityResponse> => {
-    const current = await db.selectFrom('feed_overrides')
+    let statusQuery = db.selectFrom('feed_overrides')
         .selectAll()
-        .where('user', '=', userDid)
-        .executeTakeFirst();
+        .where('user', '=', userDid);
 
-    const notOptedOut = !current || !current.optout;
+    if (config?.feed) {
+        statusQuery = statusQuery
+            .where('feed', '=', config.feed)
+    }
+    const feedOverrideOptions = await statusQuery.executeTakeFirst();
+
+    const notOptedOut = !feedOverrideOptions || !feedOverrideOptions.optout;
 
     // console.log(`optout: ${!notOptedOut}`);
-    log.push({ current })
+    log.push({ current: feedOverrideOptions })
     const mode = config?.mode ?? "auto";
     userDid = userDid && notOptedOut ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(db);
@@ -194,7 +200,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                         communities: exploreCommunitiesByLikes,
                         prefix: expandCommunityPrefix
                     },
-                    feedOverrides: current
+                    feedOverrides: feedOverrideOptions
                 }
                 // console.log(response)
                 return response;
@@ -212,7 +218,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                 communities: [],
                 prefix: expandCommunityPrefix
             },
-            feedOverrides: current
+            feedOverrides: feedOverrideOptions
         }
         // console.log(response)
         return response;
@@ -229,7 +235,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
             communities: [],
             prefix: expandCommunityPrefix
         },
-        feedOverrides: current
+        feedOverrides: feedOverrideOptions
     }
     // console.log(response)
     return response;

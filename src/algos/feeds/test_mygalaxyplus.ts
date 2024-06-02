@@ -32,7 +32,8 @@ export const config: MyCommunityPlusTemplateConfig = {
   communityConfig: {
     mode: "nebula",
     totalCommunities: 7,
-    trustedFriendsLimit: 5
+    trustedFriendsLimit: 5,
+    feed: shortname
   }
 }
 

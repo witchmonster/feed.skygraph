@@ -32,7 +32,8 @@ export const config: MyCommunityPlusTemplateConfig = {
     communityConfig: {
         mode: "constellation",
         totalCommunities: 16,
-        trustedFriendsLimit: 5
+        trustedFriendsLimit: 5,
+        feed: shortname
     }
 };
 
