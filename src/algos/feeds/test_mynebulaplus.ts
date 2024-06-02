@@ -33,7 +33,7 @@ export const config: MyCommunityPlusTemplateConfig = {
         mode: "constellation",
         totalCommunities: 16,
         trustedFriendsLimit: 5,
-        feed: shortname
+        feed: "my_nebulaplus"
     }
 };
 

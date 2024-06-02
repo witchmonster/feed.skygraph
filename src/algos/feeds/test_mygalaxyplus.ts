@@ -33,7 +33,7 @@ export const config: MyCommunityPlusTemplateConfig = {
     mode: "nebula",
     totalCommunities: 7,
     trustedFriendsLimit: 5,
-    feed: shortname
+    feed: "skygraph"
   }
 }
 
