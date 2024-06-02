@@ -221,9 +221,9 @@ ${Bot.keyword} help`;
 
 Opt out: ${options?.optout ? 'Yes' : 'No'}
 
-Replies: ${options?.hide_replies ? 'Hidden' : 'Not hidden'}
+Replies: ${options?.hide_replies ? 'Hidden' : 'Showing'}
 
-Follows: ${options?.hide_follows ? 'Not showing' : 'Showing'}
+Follows: ${options?.hide_follows ? 'Hidden' : 'Showing'}
 
 🤖💡:
 
