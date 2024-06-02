@@ -457,7 +457,7 @@ ${Bot.keyword} follows${antionoff} ${feedConf.key}
 ${Bot.keyword} status ${feedConf.key}
 
 ${Bot.keyword} help`;
-            if (options?.hide_replies) {
+            if (options?.hide_follows) {
                 if (onoff === 'on') {
                     await turnOff(false)
                     return `You turned follows on for ${feedConf.name}.${undoUsage}`;
