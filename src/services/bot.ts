@@ -139,12 +139,16 @@ To opt out:
                     .where('user', '=', command.user)
                     .executeTakeFirst();
 
+                if (!current) {
+                    return optedInText;
+                }
                 if (current && current.optout && command.value === 'out') {
                     return optedOutText;
                 }
                 if (current && !current.optout && command.value === 'in') {
                     return optedInText;
                 }
+
                 if (command.value === 'status') {
                     return current
                         ? current.optout ? optedOutText : optedInText
