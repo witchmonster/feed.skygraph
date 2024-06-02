@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import { AppContext } from '../../config'
 import { Database } from '../../db'
+import { FeedOverrides } from '../../db/schema'
 
 enum Prefixes {
     Gigacluster = 'f',
@@ -16,6 +17,7 @@ interface CommunityResponse {
     exploreCommunity: { community: string, prefix: any }
     topCommunitiesByLikes: { communities: string[], prefix: any }
     exploreCommunitiesByLikes: { communities: string[], prefix: any }
+    feedOverrides?: FeedOverrides
 }
 
 interface CommunityRequestConfig {
@@ -103,6 +105,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
     const notOptedOut = !current || !current.optout;
 
     // console.log(`optout: ${!notOptedOut}`);
+    log.push({ current })
     const mode = config?.mode ?? "auto";
     userDid = userDid && notOptedOut ? userDid : 'did:plc:v7iswx544swf2usdcp32p647';
     const communitiesRes = await sql`select f, s, c, g, e, o from did_to_community where did = ${userDid}`.execute(db);
@@ -190,7 +193,8 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                     exploreCommunitiesByLikes: {
                         communities: exploreCommunitiesByLikes,
                         prefix: expandCommunityPrefix
-                    }
+                    },
+                    feedOverrides: current
                 }
                 // console.log(response)
                 return response;
@@ -207,7 +211,8 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
             exploreCommunitiesByLikes: {
                 communities: [],
                 prefix: expandCommunityPrefix
-            }
+            },
+            feedOverrides: current
         }
         // console.log(response)
         return response;
@@ -223,7 +228,8 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
         exploreCommunitiesByLikes: {
             communities: [],
             prefix: expandCommunityPrefix
-        }
+        },
+        feedOverrides: current
     }
     // console.log(response)
     return response;
@@ -280,7 +286,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
             .where('postrank.score', '>=', minQuality)
 
     }
-    if (noReplies) {
+    if (noReplies || communityResponse.feedOverrides?.hide_replies) {
         firstPageQuery = firstPageQuery
             .where('post.replyParent', 'is', null)
     }
@@ -332,7 +338,7 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
         ]))
         .orderBy('rank', 'desc');
 
-    if (skipReplies) {
+    if (skipReplies || communityResponse.feedOverrides?.hide_replies) {
         innerSelect = innerSelect
             .where('post.replyParent', 'is', null)
     }

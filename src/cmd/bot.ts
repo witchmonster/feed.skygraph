@@ -9,7 +9,7 @@ const run = async (
 
     const BSKY_HANDLE = process.env.BSKY_BOT_USER;
     const BSKY_PASSWORD = process.env.BSKY_BOT_PASSWORD;
-    console.log({ env: BSKY_HANDLE })
+    console.log({ handle: BSKY_HANDLE, keyword: process.env.BSKY_BOT_KEYWORD })
     if (BSKY_HANDLE && BSKY_PASSWORD) {
         const { service, dryRun } = botOptions
             ? Object.assign({}, Bot.defaultOptions, botOptions)

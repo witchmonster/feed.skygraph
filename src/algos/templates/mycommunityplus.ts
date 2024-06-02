@@ -131,7 +131,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             followsRate = config.homeFollowsRate;
             res = shuffleRateLimitTrim(res, log, params.limit, seed, false);
         }
-        const { followsCursor, resultPosts } = await mixInFollows(ctx, log, followsRate, existingfollowsCursor, params.limit, seed, res, follows);
+        const { followsCursor, resultPosts } = await mixInFollows(ctx, log, followsRate, existingfollowsCursor, params.limit, seed, res, follows, communityResponse.feedOverrides);
 
         const feed = resultPosts.filter(row => row !== undefined && row.uri !== undefined).map((row) => ({
             post: row.uri

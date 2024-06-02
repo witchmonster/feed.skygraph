@@ -14,9 +14,10 @@ import { DidResolver, MemoryCache } from "@atproto/identity";
 import { getUserCommunities, sliceCommunityResponse } from "../algos/common/communities";
 import { config as mygalaxyPlusConfig } from "../algos/feeds/mygalaxyplus";
 import { config as myNebulaPlusConfig } from "../algos/feeds/mynebulaplus";
-import { text } from "stream/consumers";
-import { shortname } from "../algos/feeds/test_mygalaxyplus";
+import { InvalidRequestError } from "@atproto/xrpc-server";
+import dotenv from 'dotenv';
 
+dotenv.config();
 
 const BSKY_SERVICE = "https://bsky.social";
 
@@ -42,6 +43,7 @@ const communityHearts = {
 
 const feedMap = {
     "mygalaxy+": {
+        key: "mygalaxy+",
         config: mygalaxyPlusConfig,
         name: mygalaxyPlusConfig.feedName,
         shortname: mygalaxyPlusConfig.shortName,
@@ -49,6 +51,7 @@ const feedMap = {
         communityPlural: "Nebulas"
     },
     "mynebula+": {
+        key: "mynebula+",
         config: myNebulaPlusConfig,
         name: myNebulaPlusConfig.feedName,
         shortname: myNebulaPlusConfig.shortName,
@@ -68,9 +71,9 @@ export default class Bot {
     cronJob: CronJob;
     didResolver: DidResolver;
 
-    // static keyword: string = "!skygraphtest";
-    static keyword: string = "!skygraphbot";
-    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt'];
+    static keyword: string = process.env.BSKY_BOT_KEYWORD || "!skygraphtest";
+
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -100,11 +103,9 @@ export default class Bot {
 
 🤖💡:
 
-!skygraphbot showcommunity ${communities.o}
+${Bot.keyword} showcommunity ${communities.o}
 
-!skygraphbot showfeed mygalaxy+
-
-!skygraphbot showfeed mynebula+`;
+${Bot.keyword} help`;
                 }
             }
 
@@ -114,21 +115,21 @@ export default class Bot {
         "opt": async (command: BotCommand) => {
             const optedOutText = `You are opted out of SkyGraph feeds.
 
-Your content won't be shown in My Nebula+/My Galaxy+ feeds and you won't be shown personalized content.
+Your content won't be shown in feeds and you won't be shown personalized content.
 
 To opt out of SkyGraph dataset and map: @optout.skygraph.art
 
 To opt back in:
 
-!skygraphbot opt in`;
+${Bot.keyword} opt in`;
 
-            const optedInText = `You are opted in to SkyGraph My Nebula+/My Galaxy+ feeds.
+            const optedInText = `You are opted in to SkyGraph feeds.
 
 Both feeds are showing you personalized content based on your likes and prior interactions.
 
 To opt out:
 
-!skygraphbot opt out`;
+${Bot.keyword} opt out`;
             const optBackInText = `Welcome back! You've been opted back in to SkyGraph My Nebula+/My Galaxy+ feeds.`;
             if (command.value !== 'in' && command.value !== 'out' && command.value !== 'status') {
                 return `I'm sorry, this is not a valid command. Please use 'opt status', 'opt in' or 'opt out'.`
@@ -149,12 +150,6 @@ To opt out:
                     return optedInText;
                 }
 
-                if (command.value === 'status') {
-                    return current
-                        ? current.optout ? optedOutText : optedInText
-                        : optedInText
-
-                }
                 const optOut = command.value === 'out' ? true : false;
                 const values: FeedOverrides[] = [];
                 Object.values(feedMap).forEach(feedConf => {
@@ -170,7 +165,7 @@ To opt out:
                         optout: optOut
                     })
                     .executeTakeFirst();
-                console.log('' + res.numInsertedOrUpdatedRows)
+                // console.log('' + res.numInsertedOrUpdatedRows)
                 return '' + res.numInsertedOrUpdatedRows === '0' ? `No changes made.`
                     : command.value === 'out' ? optedOutText
                         : command.value === 'in' ? optBackInText
@@ -179,6 +174,54 @@ To opt out:
 
             await this.executeAndReply(opt, command);
 
+        },
+        "repliesoff": async (command: BotCommand) => {
+            await this.executeAndReply(this.repliesonoff("off", command), command);
+        },
+        "replieson": async (command: BotCommand) => {
+            await this.executeAndReply(this.repliesonoff("on", command), command);
+        },
+        "help": async (command: BotCommand) => {
+            const help = async () => {
+                return `🤖💡:
+
+${Bot.keyword} whereami
+${Bot.keyword} opt [out/in]
+${Bot.keyword} status [mynebula+/mygalaxy+]
+${Bot.keyword} showfeed [mynebula+/mygalaxy+]
+${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
+${Bot.keyword} showcommunity [code]`
+            }
+            await this.executeAndReply(help, command);
+        },
+        "status": async (command: BotCommand) => {
+            const status = async () => {
+                const status: { feedConf: any, options: FeedOverrides | undefined } = await this.getStatus(command);;
+                if (!status.feedConf) {
+                    return `You are opted ${status.options?.optout ? "in to" : "out of"} SkyGraph feeds.
+
+To opt ${status.options?.optout ? "out" : "in"}
+
+${Bot.keyword} opt ${status.options?.optout ? "out" : "in"}
+
+🤖💡:
+
+${Bot.keyword} help`;
+                }
+                const { feedConf, options } = status;
+
+                return `Your settings for ${feedConf.name}
+
+Opt out: ${options?.optout ? 'Yes' : 'No'}
+
+Replies: ${options?.hide_replies ? 'Hidden' : 'Not hidden'}
+
+🤖💡:
+
+${Bot.keyword} replies${options?.hide_replies ? 'on' : 'off'} ${feedConf.key}`;
+
+            }
+            await this.executeAndReply(status, command);
         },
         "showcommunity": async (command: BotCommand) => {
             const showcommunity = async () => {
@@ -268,7 +311,7 @@ ${links}`;
 
     🤖💡:
 
-    !skygraphbot showcommunity ${communities.userCommunity.community}
+    ${Bot.keyword} showcommunity ${communities.userCommunity.community}
     `;
                 }
             };
@@ -296,6 +339,80 @@ ${links}`;
 
     login(loginOpts: AtpAgentLoginOpts) {
         return this.#agent.login(loginOpts);
+    }
+
+    async getStatus(command: BotCommand) {
+        const feed = command.value;
+        let feedConf;
+        let statusQuery = this.db.selectFrom('feed_overrides')
+            .selectAll()
+            .where('user', '=', command.user);
+        if (feed && feedMap[feed]) {
+            feedConf = feedMap[feed];
+            statusQuery = statusQuery
+                .where('feed', '=', feedConf.shortname)
+        }
+
+        const options: FeedOverrides | undefined = await statusQuery.executeTakeFirst();
+
+        return { feedConf, options };
+    }
+
+    repliesonoff(onoff: string, command: BotCommand) {
+        return async () => {
+            const status = await this.getStatus(command);
+            if (!status.feedConf) {
+                return `Feed does not exist.`;
+            }
+
+            const { feedConf, options } = status;
+
+            const turnOff = async (toggle: boolean) => {
+                await this.db.insertInto('feed_overrides')
+                    .values({
+                        user: command.user,
+                        feed: feedConf.shortname,
+                        optout: false,
+                        hide_replies: toggle
+                    })
+                    .onDuplicateKeyUpdate({
+                        hide_replies: toggle
+                    })
+                    .execute();
+            }
+            const antionoff = onoff === 'off' ? 'on' : 'off';
+            const undoUsage = `
+undo:
+
+${Bot.keyword} replies${antionoff} ${feedConf.key}
+
+🤖💡:
+
+${Bot.keyword} status ${feedConf.key}
+
+${Bot.keyword} help`;
+            if (options?.hide_replies) {
+                if (onoff === 'on') {
+                    await turnOff(false)
+                    return `You turned replies on for ${feedConf.name}.${undoUsage}`;
+                }
+
+                if (onoff === 'off') {
+                    return `Replies are already off for ${feedConf.name}.`;
+                }
+            } else {
+                if (onoff === 'on') {
+                    return `Replies are already on for ${feedConf.name}.`;
+                }
+
+                if (onoff === 'off') {
+                    await turnOff(true)
+                    return `You turned replies off for ${feedConf.name}.${undoUsage}`;
+                }
+            }
+
+            return 'Something went wrong.';
+        }
     }
 
     async resolveHandles(dids: string[]) {

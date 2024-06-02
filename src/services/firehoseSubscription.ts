@@ -51,6 +51,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           return undefined;
         }
 
+        console.log(`Keyword: ${Bot.keyword}`);
         console.log(split);
         const command = split[1];
         console.log(`Command exists: ${command}:${Bot.commands.includes(command)}`);

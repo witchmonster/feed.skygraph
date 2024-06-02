@@ -1,8 +1,9 @@
 import { sql } from 'kysely'
 import { AppContext } from '../../config'
 import { rateLimit } from './util';
+import { FeedOverrides } from '../../db/schema';
 
-const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit: number, follows: string[]) => {
+const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit: number, follows: string[], feedOverrides?: FeedOverrides) => {
     let chronological = ctx.db
         .selectFrom('post')
         .selectAll()
@@ -17,16 +18,21 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
             .where('indexedAt', '<=', existingTimestamp)
     }
 
+    if (feedOverrides?.hide_replies) {
+        chronological = chronological
+            .where('post.replyParent', 'is', null)
+    }
+
     // console.log(chronological.compile().sql);
 
     return await chronological.execute();
 }
 
-const mixInFollows = async (ctx: AppContext, log: any[], followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined) => {
+const mixInFollows = async (ctx: AppContext, log: any[], followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined, feedOverrides?: FeedOverrides) => {
     let followsCursor;
     let resultPosts: { author: string, uri: string }[] = [];
     if (follows && follows.length > 0) {
-        const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows);
+        const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows, feedOverrides);
         const rateLimitedFollows = rateLimit(followsResponse, true, seed);
         let j = 0;
         let i = 0;
