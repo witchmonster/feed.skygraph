@@ -73,7 +73,7 @@ export default class Bot {
 
     static keyword: string = process.env.BSKY_BOT_KEYWORD || "!skygraphtest";
 
-    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson'];
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson', 'setoption'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -187,49 +187,90 @@ ${Bot.keyword} opt out`;
         "followson": async (command: BotCommand) => {
             await this.executeAndReply(this.followsonoff("on", command), command);
         },
+        "setoption": async (command: BotCommand) => {
+            const setoption = async () => {
+                const invalidCommand = `
+
+🤖💡:
+
+!skygraphtest help`
+                if (!command.value) {
+                    return `Invalid command value.`;
+                }
+                const split = command.value.split("::")
+                if (!split || split.length < 2) {
+                    return `Invalid command value.`;
+                }
+                if (!feedMap[split[0]]) {
+                    return `Feed doesn't exist`;
+                }
+                const feed = feedMap[split[0]].shortname;
+                const splitValue = split[1].split("=");
+                if (!splitValue || splitValue.length < 2) {
+                    return `Invalid command value.`;
+                }
+                const option = splitValue[0];
+                let optionValue;
+                optionValue = (option === 'c_include'
+                    || option === 'c_exclude') ? splitValue[1] : +splitValue[1];
+                console.log({ optionValue });
+
+                if (!optionValue || (option === 'home_communities'
+                    || option === 'discover_communities'
+                    || option === 'discover_rate'
+                    || option === 'follows_rate') && +optionValue < 1) {
+                    return `Invalid command value.`
+                }
+
+                if (option === 'home_communities'
+                    || option === 'discover_communities'
+                    || option === 'discover_rate'
+                    || option === 'follows_rate'
+                    || option === 'c_include'
+                    || option === 'c_exclude'
+                ) {
+                    const values = {
+                        user: command.user,
+                        feed: feed,
+                        optout: false
+                    };
+                    values[option] = optionValue;
+                    const update = {};
+                    update[option] = optionValue;
+                    const res = await this.db.insertInto('feed_overrides')
+                        .values(values)
+                        .onDuplicateKeyUpdate(update)
+                        .executeTakeFirst();
+
+                    // console.log({ res });
+
+                    return await this.getOverrideStatusReply({ ...command, value: feedMap[split[0]].key });
+                } else {
+                    return `Invalid command value.`;
+                }
+            }
+            await this.executeAndReply(setoption, command);
+        },
         "help": async (command: BotCommand) => {
             const help = async () => {
                 return `🤖💡:
 
 ${Bot.keyword} whereami
 ${Bot.keyword} opt [out/in]
-${Bot.keyword} status [mynebula+/mygalaxy+]
-${Bot.keyword} showfeed [mynebula+/mygalaxy+]
-${Bot.keyword} follows[on/off] [mynebula+/mygalaxy+]
-${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
-${Bot.keyword} showcommunity [code]`
+${Bot.keyword} status [feed]
+${Bot.keyword} showfeed [feed]
+${Bot.keyword} showcommunity [code]
+${Bot.keyword} follows[on/off] [feed]
+${Bot.keyword} replies[on/off] [feed]
+${Bot.keyword} setoption [feed::option=value]
+
+feed: [ mynebula+ , mygalaxy+ ]
+option: [ home_communities, discover_communities, discover_rate, follows_rate ]`
             }
             await this.executeAndReply(help, command);
         },
         "status": async (command: BotCommand) => {
-            const status = async () => {
-                const status: { feedConf: any, options: FeedOverrides | undefined } = await this.getStatus(command);;
-                if (!status.feedConf) {
-                    return `You are opted ${status.options?.optout ? "in to" : "out of"} SkyGraph feeds.
-
-To opt ${status.options?.optout ? "out" : "in"}
-
-${Bot.keyword} opt ${status.options?.optout ? "out" : "in"}
-
-🤖💡:
-
-${Bot.keyword} help`;
-                }
-                const { feedConf, options } = status;
-
-                return `Your settings for ${feedConf.name}
-
-Opt out: ${options?.optout ? 'Yes' : 'No'}
-
-Replies: ${options?.hide_replies ? 'Hidden' : 'Showing'}
-
-Follows: ${options?.hide_follows ? 'Hidden' : 'Showing'}
-
-🤖💡:
-
-${Bot.keyword} help`;
-
-            }
+            const status = () => this.getOverrideStatusReply(command);
             await this.executeAndReply(status, command);
         },
         "showcommunity": async (command: BotCommand) => {
@@ -312,16 +353,17 @@ ${links}`;
 
                     return `📍You: ${communities.userCommunity.community}
 
-    📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
+📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
 
-    🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities}
+🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities.slice(0, 10)}
 
-    🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities}
+🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities.slice(0, 10)}
 
-    🤖💡:
+🤖💡:
 
-    ${Bot.keyword} showcommunity ${communities.userCommunity.community}
-    `;
+${Bot.keyword} showcommunity ${communities.userCommunity.community}
+
+${Bot.keyword} help`;
                 }
             };
 
@@ -350,7 +392,7 @@ ${links}`;
         return this.#agent.login(loginOpts);
     }
 
-    async getStatus(command: BotCommand) {
+    async getOverrideStatus(command: BotCommand) {
         const feed = command.value;
         let feedConf;
         let statusQuery = this.db.selectFrom('feed_overrides')
@@ -367,9 +409,44 @@ ${links}`;
         return { feedConf, options };
     }
 
+    async getOverrideStatusReply(command: BotCommand) {
+        {
+            const status: { feedConf: any, options: FeedOverrides | undefined } = await this.getOverrideStatus(command);
+            if (!status.feedConf) {
+                return `You are opted ${status.options?.optout ? "out of" : "in to"} SkyGraph feeds.
+
+To opt ${status.options?.optout ? "in" : "out"}
+
+${Bot.keyword} opt ${status.options?.optout ? "in" : "out"}
+
+🤖💡:
+
+${Bot.keyword} help`;
+            }
+            const { feedConf, options } = status;
+
+            return `Your settings for ${feedConf.name}
+
+Opt out: ${options?.optout ? 'Yes' : 'No'}
+Replies: ${options?.hide_replies ? 'Hidden' : 'Showing'}
+Follows: ${options?.hide_follows ? 'Hidden' : 'Showing'}
+Follows rate: ${options?.follows_rate ? options?.follows_rate : feedConf.config.followsPostsRate}
+Home communities: ${options?.home_communities ? options?.home_communities : feedConf.config.homeCommunities}
+Discover rate: ${options?.dicover_rate ? options?.dicover_rate : feedConf.config.discoverPostsRate}
+Discover communities: ${options?.discover_communities ? options?.discover_communities : feedConf.config.discoverCommunities}
+Included communities: ${options?.c_include?.slice(0, 5) ?? []}
+Excluded communities: ${options?.c_exclude?.slice(0, 5) ?? []}
+
+🤖💡:
+
+${Bot.keyword} help`;
+
+        }
+    }
+
     repliesonoff(onoff: string, command: BotCommand) {
         return async () => {
-            const status = await this.getStatus(command);
+            const status = await this.getOverrideStatus(command);
             if (!status.feedConf) {
                 return `Feed does not exist.`;
             }
@@ -426,7 +503,7 @@ ${Bot.keyword} help`;
 
     followsonoff(onoff: string, command: BotCommand) {
         return async () => {
-            const status = await this.getStatus(command);
+            const status = await this.getOverrideStatus(command);
             if (!status.feedConf) {
                 return `Feed does not exist.`;
             }

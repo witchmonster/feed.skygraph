@@ -17,12 +17,15 @@ interface CommunityResponse {
     exploreCommunity: { community: string, prefix: any }
     topCommunitiesByLikes: { communities: string[], prefix: any }
     exploreCommunitiesByLikes: { communities: string[], prefix: any }
+    includeCommunities: { communities: string[], prefix: any }
+    excludeCommunities: { communities: string[], prefix: any }
     feedOverrides?: FeedOverrides
 }
 
 interface CommunityRequestConfig {
     mode?: 'auto' | 'constellation' | 'nebula'
-    totalCommunities: number
+    homeCommunities: number
+    discoverCommunities: number
     trustedFriendsLimit: number
     feed?: string
 }
@@ -108,6 +111,12 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
     }
     const feedOverrideOptions = await statusQuery.executeTakeFirst();
 
+    //handle overrides
+    const homeCommunities = feedOverrideOptions?.home_communities ?? config?.homeCommunities;
+    const discoverCommunities = feedOverrideOptions?.discover_communities ?? config?.discoverCommunities;
+    const totalCommunities = homeCommunities && discoverCommunities ? homeCommunities + discoverCommunities : undefined;
+    //handle overrides
+
     const notOptedOut = !feedOverrideOptions || !feedOverrideOptions.optout;
 
     // console.log(`optout: ${!notOptedOut}`);
@@ -129,7 +138,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.o, prefix: 'o' } : { community: 's574', prefix: 's' };
         topLikedCommunityPrefix = 'o';
         expandCommunityPrefix = 'o';
-        minCommunities = config?.totalCommunities ?? 12;
+        minCommunities = totalCommunities ?? 12;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
 
@@ -137,9 +146,14 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
         userCommunity = userHasCommunities ? { community: (communitiesRes?.rows[0] as any)?.e, prefix: 'e' } : { community: 's574', prefix: 's' };
         topLikedCommunityPrefix = 'e';
         expandCommunityPrefix = 'e';
-        minCommunities = config?.totalCommunities ?? 5;
+        minCommunities = totalCommunities ?? 5;
         trustedFriendsLimit = config?.trustedFriendsLimit ?? 5;
     }
+
+    //handle overrides
+    const includeCommunities = feedOverrideOptions?.c_include ? { communities: feedOverrideOptions?.c_include, prefix: feedOverrideOptions?.c_include[0].substring(0, 1) } : { communities: [], prefix: topLikedCommunityPrefix };
+    const excludeCommunities = feedOverrideOptions?.c_exclude ? { communities: feedOverrideOptions?.c_exclude, prefix: feedOverrideOptions?.c_exclude[0].substring(0, 1) } : { communities: [], prefix: topLikedCommunityPrefix };
+    //handle overrides
 
     // console.log({ userCommunity, expandCommunityPrefix, topLikedLimit, trustedFriendsLimit })
 
@@ -147,7 +161,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
     const topLikedCommunityDotPrefix: any = `did_to_community.${topLikedCommunityPrefix}`;
     const expandDidToCommunityDotPrefix: any = `did_to_community.${expandCommunityPrefix}`;
 
-    if (config?.totalCommunities && config?.totalCommunities > 0) {
+    if (totalCommunities && totalCommunities > 0) {
         const topLikedCommunitiesQuery = db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select([topLikedCommunityDotPrefix, 'likescore.subject'])
@@ -200,7 +214,9 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                         communities: exploreCommunitiesByLikes,
                         prefix: expandCommunityPrefix
                     },
-                    feedOverrides: feedOverrideOptions
+                    feedOverrides: feedOverrideOptions,
+                    includeCommunities,
+                    excludeCommunities
                 }
                 // console.log(response)
                 return response;
@@ -218,7 +234,9 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                 communities: [],
                 prefix: expandCommunityPrefix
             },
-            feedOverrides: feedOverrideOptions
+            feedOverrides: feedOverrideOptions,
+            includeCommunities,
+            excludeCommunities
         }
         // console.log(response)
         return response;
@@ -235,7 +253,9 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
             communities: [],
             prefix: expandCommunityPrefix
         },
-        feedOverrides: feedOverrideOptions
+        feedOverrides: feedOverrideOptions,
+        includeCommunities,
+        excludeCommunities
     }
     // console.log(response)
     return response;
@@ -244,7 +264,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
 const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig, communityResponse: CommunityResponse) => {
     // console.log(`-------------------- first page posts --------------------`);
     const { withWideExplore, repliesRatio, seed, gravity, limit, minQuality, noReplies } = config;
-    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes, includeCommunities, excludeCommunities } = communityResponse;
 
     const lookupCommunities = (eb) => {
         const response = [
@@ -261,6 +281,10 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
 
         if (exploreCommunitiesByLikes.communities.length > 0) {
             response.push(eb(exploreCommunitiesByLikes.prefix, 'in', exploreCommunitiesByLikes.communities))
+        }
+
+        if (includeCommunities.communities.length > 0) {
+            response.push(eb(includeCommunities.prefix, 'in', includeCommunities.communities))
         }
 
         return eb.or(response)
@@ -287,6 +311,11 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
         .orderBy('rank', 'desc')
         .limit(limit);
 
+    if (excludeCommunities.communities.length > 0) {
+        firstPageQuery = firstPageQuery
+            .where(excludeCommunities.prefix, 'not in', excludeCommunities.communities)
+    }
+
     if (minQuality) {
         firstPageQuery = firstPageQuery
             .where('postrank.score', '>=', minQuality)
@@ -305,7 +334,7 @@ const getFirstPagePosts = async (ctx: AppContext, config: FirstPageRequestConfig
 const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, communityResponse: CommunityResponse) => {
     // console.log(`-------------------- ranked posts --------------------`);
     const { withWideExplore: withExplore, skipReplies, existingRank, gravity, limit } = config;
-    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes } = communityResponse;
+    const { userCommunity, exploreCommunity, topCommunitiesByLikes, exploreCommunitiesByLikes, includeCommunities, excludeCommunities } = communityResponse;
 
     const prefixes = [...new Set([userCommunity.prefix, exploreCommunity.prefix, topCommunitiesByLikes.prefix, exploreCommunitiesByLikes.prefix])]
 
@@ -326,6 +355,10 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
             response.push(eb(exploreCommunitiesByLikes.prefix, 'in', exploreCommunitiesByLikes.communities))
         }
 
+        if (includeCommunities.communities.length > 0) {
+            response.push(eb(includeCommunities.prefix, 'in', includeCommunities.communities))
+        }
+
         return eb.or(response)
     };
 
@@ -343,6 +376,11 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
             eb('feed_overrides.optout', '<>', true)
         ]))
         .orderBy('rank', 'desc');
+
+    if (excludeCommunities.communities.length > 0) {
+        innerSelect = innerSelect
+            .where(excludeCommunities.prefix, 'not in', excludeCommunities.communities)
+    }
 
     if (skipReplies || communityResponse.feedOverrides?.hide_replies) {
         innerSelect = innerSelect
@@ -367,10 +405,10 @@ const getRankedPosts = async (ctx: AppContext, config: RankedRequestConfig, comm
     return await ranked.execute();
 }
 
-const sliceCommunityResponse = (res: CommunityResponse, maxCount: number, skipFirst?: number) => {
-    const maxCountWithExcluded = skipFirst ? maxCount - skipFirst : maxCount;
-    const topLikedSlice = res.topCommunitiesByLikes.communities.slice(skipFirst, maxCount);
-    const explorePortion = maxCountWithExcluded - topLikedSlice.length;
+const sliceCommunityResponse = (res: CommunityResponse, totalCount: number, skipFirst?: number) => {
+    const startPos = skipFirst ? skipFirst : 0;
+    const topLikedSlice = res.topCommunitiesByLikes.communities.slice(startPos, totalCount);
+    const explorePortion = totalCount - topLikedSlice.length;
     return {
         ...res, topCommunitiesByLikes: {
             communities: topLikedSlice,

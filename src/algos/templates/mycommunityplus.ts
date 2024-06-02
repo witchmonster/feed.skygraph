@@ -17,30 +17,35 @@ export interface MyCommunityPlusTemplateConfig {
     // max 15 chars
     shortName: string;
     feedName: string;
-    //fist page
+
+    //first page
     firstPageHNGravity: number;
     firstPageReplyRatio: number;
     firstPageHomeMinQuality: number;
     firstPageDiscoverMinQuality: number;
-    firstPageCommunities: number;
-    firstPageFollowsRate: number;
     firstPagePostLookupMultiplier: number;
     firstPageRandomizeWithinRateLimit: boolean;
-    //main feed
+
+    //follows mix in
+    followsPostsRate: number;
+
+    //home feed
     homeHNGravity: number;
     homeSkipReplies: boolean;
     homeCommunities: number;
-    homeFollowsRate: number;
     homePostLookupMultiplier: number;
     homeRandomizeWithinRateLimit: boolean;
+
     //discover mix in
     discoverHNGravity: number;
     discoverSkipReplies: boolean;
     discoverCommunities: number;
     discoverPostsRate: number;
     discoverRandomizeWithinRateLimit: boolean;
+
     //input communities
-    communityConfig: CommunityRequestConfig;
+    mode: 'auto' | 'constellation' | 'nebula'
+    trustedFriendsLimit: number
 }
 
 export const generateCommunityPlusFeed = async (feedContext: FeedContext, config: MyCommunityPlusTemplateConfig) => {
@@ -76,14 +81,26 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
     let res: any;
     let lastHomeRank;
     let lastDiscoverRank;
-    let followsRate;
     try {
-        const communityResponse: CommunityResponse = await getUserCommunities(ctx.db, log, userDid, config.communityConfig);
-        const totalCommunities = communityResponse.topCommunitiesByLikes.communities.length + communityResponse.exploreCommunitiesByLikes.communities.length;
-        const notEnoughCommunities = totalCommunities < config.communityConfig.totalCommunities;
+        const communityResponse: CommunityResponse = await getUserCommunities(ctx.db, log, userDid, {
+            mode: config.mode,
+            trustedFriendsLimit: config.trustedFriendsLimit,
+            homeCommunities: config.homeCommunities,
+            discoverCommunities: config.discoverCommunities,
+            feed: config.shortName
+        });
+        //handle overrides
+        const homeCommunities = communityResponse.feedOverrides?.home_communities ?? config.homeCommunities;
+        const discoverCommunities = communityResponse.feedOverrides?.discover_communities ?? config.discoverCommunities;
+        const totalCommunities = homeCommunities + discoverCommunities;
+        const discoverRate = communityResponse.feedOverrides?.dicover_rate ?? config.discoverPostsRate;
+        const followsRate = communityResponse.feedOverrides?.follows_rate ?? config.followsPostsRate;
+        //handle overrides
+        const totalResultingCommunities = communityResponse.topCommunitiesByLikes.communities.length + communityResponse.exploreCommunitiesByLikes.communities.length;
+        const notEnoughCommunities = totalResultingCommunities < totalCommunities;
         if (!existingHomeRank || !existingDiscoverRank) {
             log.push(`Generating home first page...`);
-            const firstPageCommunityResponse = sliceCommunityResponse(communityResponse, config.firstPageCommunities);
+            const firstPageCommunityResponse = sliceCommunityResponse(communityResponse, homeCommunities);
             log.push({ topCommunitiesByLikes: firstPageCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: firstPageCommunityResponse.exploreCommunitiesByLikes.communities });
             const firstPageRes = await getFirstPagePosts(ctx, {
                 withWideExplore: notEnoughCommunities,
@@ -95,7 +112,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             }, firstPageCommunityResponse);
             lastHomeRank = 99999999;
             log.push(`Generating discover first page...`);
-            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, config.discoverCommunities, config.homeCommunities);
+            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, totalCommunities, homeCommunities);
             log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
             const discoverRes: any = await getFirstPagePosts(ctx, {
                 withWideExplore: notEnoughCommunities,
@@ -109,17 +126,16 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             //mix in discover into home at a specified rate
             res = await mergePosts(
                 seed,
-                config.discoverPostsRate,
+                discoverRate,
                 rateLimit(firstPageRes, config.firstPageRandomizeWithinRateLimit, seed),
                 rateLimit(discoverRes, config.discoverRandomizeWithinRateLimit, seed)
             );
             lastDiscoverRank = 99999999;
-            followsRate = config.firstPageFollowsRate;
             res = shuffleRateLimitTrim(res, log, params.limit, seed, false);
         } else {
             //home part
             log.push(`Generating home posts...`);
-            const homeCommunityResponse = sliceCommunityResponse(communityResponse, config.homeCommunities);
+            const homeCommunityResponse = sliceCommunityResponse(communityResponse, homeCommunities);
             log.push({ topCommunitiesByLikes: homeCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: homeCommunityResponse.exploreCommunitiesByLikes.communities });
             const homeRes: any = await getRankedPosts(ctx, {
                 existingRank: existingHomeRank,
@@ -131,7 +147,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             lastHomeRank = homeRes?.at(-1).rank;
             //discover part
             log.push(`Generating discover posts...`);
-            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, config.discoverCommunities, config.homeCommunities);
+            const discoverCommunityResponse = sliceCommunityResponse(communityResponse, totalCommunities, homeCommunities);
             log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
             const discoverRes: any = await getRankedPosts(ctx, {
                 existingRank: existingDiscoverRank,
@@ -144,11 +160,10 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             //mix in discover into home at a specified rate
             res = await mergePosts(
                 seed,
-                config.discoverPostsRate,
+                discoverRate,
                 rateLimit(homeRes, config.homeRandomizeWithinRateLimit, seed),
                 rateLimit(discoverRes, config.discoverRandomizeWithinRateLimit, seed)
             );
-            followsRate = config.homeFollowsRate;
             res = shuffleRateLimitTrim(res, log, params.limit, seed, false);
         }
         const { followsCursor, resultPosts } = await mixInFollows(ctx, log, followsRate, existingfollowsCursor, params.limit, seed, res, follows, communityResponse.feedOverrides);

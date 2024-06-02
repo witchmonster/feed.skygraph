@@ -41,8 +41,13 @@ export type FeedOverrides = {
   optout: boolean,
   hide_replies?: boolean,
   hide_follows?: boolean,
-  c_exclude?: string,
-  did_exclude?: string,
+  c_exclude?: string[],
+  c_include?: string[],
+  did_exclude?: string[],
+  home_communities?: number,
+  discover_communities?: number,
+  dicover_rate?: number,
+  follows_rate?: number,
 }
 
 export type BotCommand = {

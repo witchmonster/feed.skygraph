@@ -12,30 +12,25 @@ export const config: MyCommunityPlusTemplateConfig = {
   firstPageReplyRatio: 0.2,
   firstPageHomeMinQuality: 5,
   firstPageDiscoverMinQuality: 10,
-  firstPageCommunities: 5,
-  firstPageFollowsRate: 5,
   firstPagePostLookupMultiplier: 20,
   firstPageRandomizeWithinRateLimit: false,
-  //main feed
+  //follows mix in
+  followsPostsRate: 5,
+  //home feed
   homeHNGravity: 4,
   homeSkipReplies: false,
-  homeCommunities: 5,
-  homeFollowsRate: 5,
+  homeCommunities: 7,
   homePostLookupMultiplier: 3,
   homeRandomizeWithinRateLimit: false,
   //discover mix in
   discoverHNGravity: 3,
   discoverSkipReplies: true,
-  discoverCommunities: 7,
+  discoverCommunities: 10,
   discoverPostsRate: 5,
   discoverRandomizeWithinRateLimit: false,
   //input communities
-  communityConfig: {
-    mode: "nebula",
-    totalCommunities: 7,
-    trustedFriendsLimit: 5,
-    feed: shortname
-  }
+  mode: "nebula",
+  trustedFriendsLimit: 5
 }
 
 export const handler = async (ctx: AppContext, params: QueryParams, userDid: string, follows?: string[]) => {

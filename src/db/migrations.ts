@@ -427,3 +427,33 @@ migrations['016'] = {
     await db.schema.alterTable('feed_overrides').dropColumn('hide_follows').execute();
   },
 };
+
+migrations['017'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('feed_overrides')
+      .addColumn('home_communities', 'integer')
+      .addColumn('discover_communities', 'integer')
+      .addColumn('discover_rate', 'integer')
+      .addColumn('follows_rate', 'integer')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('home_communities').dropColumn('hide_replies').execute();
+    await db.schema.alterTable('discover_communities').dropColumn('hide_follows').execute();
+    await db.schema.alterTable('discover_rate').dropColumn('hide_replies').execute();
+    await db.schema.alterTable('follows_rate').dropColumn('hide_follows').execute();
+  },
+};
+
+migrations['018'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('feed_overrides')
+      .addColumn('c_include', 'json')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('c_include').dropColumn('feed_overrides').execute();
+  },
+};
