@@ -73,7 +73,7 @@ export default class Bot {
 
     static keyword: string = process.env.BSKY_BOT_KEYWORD || "!skygraphtest";
 
-    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help'];
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -181,6 +181,12 @@ ${Bot.keyword} opt out`;
         "replieson": async (command: BotCommand) => {
             await this.executeAndReply(this.repliesonoff("on", command), command);
         },
+        "followsoff": async (command: BotCommand) => {
+            await this.executeAndReply(this.followsonoff("off", command), command);
+        },
+        "followson": async (command: BotCommand) => {
+            await this.executeAndReply(this.followsonoff("on", command), command);
+        },
         "help": async (command: BotCommand) => {
             const help = async () => {
                 return `🤖💡:
@@ -189,6 +195,7 @@ ${Bot.keyword} whereami
 ${Bot.keyword} opt [out/in]
 ${Bot.keyword} status [mynebula+/mygalaxy+]
 ${Bot.keyword} showfeed [mynebula+/mygalaxy+]
+${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
 ${Bot.keyword} replies[on/off] [mynebula+/mygalaxy+]
 ${Bot.keyword} showcommunity [code]`
             }
@@ -216,9 +223,11 @@ Opt out: ${options?.optout ? 'Yes' : 'No'}
 
 Replies: ${options?.hide_replies ? 'Hidden' : 'Not hidden'}
 
+Follows: ${options?.hide_follows ? 'Showing' : 'Not showing'}
+
 🤖💡:
 
-${Bot.keyword} replies${options?.hide_replies ? 'on' : 'off'} ${feedConf.key}`;
+${Bot.keyword} help`;
 
             }
             await this.executeAndReply(status, command);
@@ -408,6 +417,63 @@ ${Bot.keyword} help`;
                 if (onoff === 'off') {
                     await turnOff(true)
                     return `You turned replies off for ${feedConf.name}.${undoUsage}`;
+                }
+            }
+
+            return 'Something went wrong.';
+        }
+    }
+
+    followsonoff(onoff: string, command: BotCommand) {
+        return async () => {
+            const status = await this.getStatus(command);
+            if (!status.feedConf) {
+                return `Feed does not exist.`;
+            }
+
+            const { feedConf, options } = status;
+
+            const turnOff = async (toggle: boolean) => {
+                await this.db.insertInto('feed_overrides')
+                    .values({
+                        user: command.user,
+                        feed: feedConf.shortname,
+                        optout: false,
+                        hide_follows: toggle
+                    })
+                    .onDuplicateKeyUpdate({
+                        hide_follows: toggle
+                    })
+                    .execute();
+            }
+            const antionoff = onoff === 'off' ? 'on' : 'off';
+            const undoUsage = `
+undo:
+
+${Bot.keyword} follows${antionoff} ${feedConf.key}
+
+🤖💡:
+
+${Bot.keyword} status ${feedConf.key}
+
+${Bot.keyword} help`;
+            if (options?.hide_replies) {
+                if (onoff === 'on') {
+                    await turnOff(false)
+                    return `You turned follows on for ${feedConf.name}.${undoUsage}`;
+                }
+
+                if (onoff === 'off') {
+                    return `Follows are already off for ${feedConf.name}.`;
+                }
+            } else {
+                if (onoff === 'on') {
+                    return `Follows are already on for ${feedConf.name}.`;
+                }
+
+                if (onoff === 'off') {
+                    await turnOff(true)
+                    return `You turned follows off for ${feedConf.name}.${undoUsage}`;
                 }
             }
 

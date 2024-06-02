@@ -11,27 +11,27 @@ export const config: MyCommunityPlusTemplateConfig = {
   firstPageHNGravity: 4,
   firstPageReplyRatio: 0.2,
   firstPageMinQuality: 5,
-  firstPageCommunities: 5,
+  firstPageCommunities: 7,
   firstPageFollowsRate: 5,
   firstPagePostLookupMultiplier: 20,
   firstPageRandomizeWithinRateLimit: false,
   //main feed
   homeHNGravity: 4,
   homeSkipReplies: false,
-  homeCommunities: 5,
+  homeCommunities: 7,
   homeFollowsRate: 5,
   homePostLookupMultiplier: 3,
   homeRandomizeWithinRateLimit: false,
   //discover mix in
   discoverHNGravity: 3,
   discoverSkipReplies: true,
-  discoverCommunities: 7,
+  discoverCommunities: 10,
   discoverPostsRate: 5,
   discoverRandomizeWithinRateLimit: false,
   //input communities
   communityConfig: {
     mode: "nebula",
-    totalCommunities: 7,
+    totalCommunities: 10,
     trustedFriendsLimit: 5,
     feed: "skygraph"
   }

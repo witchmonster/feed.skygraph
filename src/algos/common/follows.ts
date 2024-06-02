@@ -31,7 +31,7 @@ const getFollowsPosts = async (ctx: AppContext, existingTimestamp: string, limit
 const mixInFollows = async (ctx: AppContext, log: any[], followsRate: number, existingCursor: string, limit: number, seed: number, posts: any[], follows: string[] | undefined, feedOverrides?: FeedOverrides) => {
     let followsCursor;
     let resultPosts: { author: string, uri: string }[] = [];
-    if (follows && follows.length > 0) {
+    if (follows && follows.length > 0 && !feedOverrides?.hide_follows) {
         const followsResponse = await getFollowsPosts(ctx, existingCursor, limit * 2, follows, feedOverrides);
         const rateLimitedFollows = rateLimit(followsResponse, true, seed);
         let j = 0;
