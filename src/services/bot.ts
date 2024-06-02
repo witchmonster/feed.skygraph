@@ -7,7 +7,7 @@ import type {
 import { AtUri, BskyAgent, RichText } from "@atproto/api";
 import { createDb, Database, migrateToLatest } from '../db'
 import { CronJob } from 'cron';
-import { BotCommand, FeedOverrides } from "../db/schema";
+import { BotCommand, Community, FeedOverrides } from "../db/schema";
 import { ReplyRef } from "../lexicon/types/app/bsky/feed/post";
 import { sql } from "kysely";
 import { DidResolver, MemoryCache } from "@atproto/identity";
@@ -16,6 +16,8 @@ import { config as mygalaxyPlusConfig } from "../algos/feeds/mygalaxyplus";
 import { config as myNebulaPlusConfig } from "../algos/feeds/mynebulaplus";
 import { InvalidRequestError } from "@atproto/xrpc-server";
 import dotenv from 'dotenv';
+import { MyCommunityPlusTemplateConfig } from "../algos/templates/mycommunityplus";
+import { measureMemory } from "vm";
 
 dotenv.config();
 
@@ -41,7 +43,16 @@ const communityHearts = {
     'o': "💜"
 }
 
-const feedMap = {
+const feedMap: {
+    [key: string]: {
+        key: string,
+        config: MyCommunityPlusTemplateConfig,
+        name: string,
+        shortname: string,
+        communityNoun: string,
+        communityPlural: string
+    }
+} = {
     "mygalaxy+": {
         key: "mygalaxy+",
         config: mygalaxyPlusConfig,
@@ -73,7 +84,7 @@ export default class Bot {
 
     static keyword: string = process.env.BSKY_BOT_KEYWORD || "!skygraphtest";
 
-    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson', 'setoption'];
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson', 'setoption', 'find'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -253,19 +264,49 @@ ${Bot.keyword} opt out`;
         },
         "help": async (command: BotCommand) => {
             const help = async () => {
-                return `🤖💡:
+                if (command.value && command.value === 'examples') {
+                    return `🤖💡:
 
 ${Bot.keyword} whereami
-${Bot.keyword} opt [out/in]
-${Bot.keyword} status [feed]
-${Bot.keyword} showfeed [feed]
-${Bot.keyword} showcommunity [code]
-${Bot.keyword} follows[on/off] [feed]
-${Bot.keyword} replies[on/off] [feed]
-${Bot.keyword} setoption [feed::option=value]
+${Bot.keyword} opt out
+${Bot.keyword} status mygalaxy+
+${Bot.keyword} showfeed mynebula+
+${Bot.keyword} showcommunity o2025039
+${Bot.keyword} find o::skygraph.art
+${Bot.keyword} followsoff mynebula+
+${Bot.keyword} repliesoff mygalaxy+
+${Bot.keyword} setoption mygalaxy+::discover_communities=5
+${Bot.keyword} setoption mygalaxy+::follows_rate=10`
+                } else if (command.value && command.value === 'options') {
+                    return `🤖💡:
 
-feed: [ mynebula+ , mygalaxy+ ]
-option: [ home_communities, discover_communities, discover_rate, follows_rate ]`
+f: [ mygalaxy+, mynebula+ ]
+p: [ f, s, c, g, e, o ]
+u: [ user_hanle, post_url ]
+
+opt:
+
+home_communities: number,
+discover_communities: number,
+follows_rate: number,
+discover_rate: number,
+c_exclude: string[],
+c_include: string[]`;
+                } else {
+                    return `🤖💡:
+
+${Bot.keyword} whereami
+${Bot.keyword} opt out
+${Bot.keyword} status [f]
+${Bot.keyword} showfeed [f]
+${Bot.keyword} showcommunity [c]
+${Bot.keyword} find [p]::[u]
+${Bot.keyword} followsoff [f]
+${Bot.keyword} repliesoff [f]
+${Bot.keyword} setoption [f::opt=v]
+${Bot.keyword} help examples
+${Bot.keyword} help options`;
+                }
             }
             await this.executeAndReply(help, command);
         },
@@ -273,14 +314,72 @@ option: [ home_communities, discover_communities, discover_rate, follows_rate ]`
             const status = () => this.getOverrideStatusReply(command);
             await this.executeAndReply(status, command);
         },
+        "find": async (command: BotCommand) => {
+            const showcommunity = async () => {
+
+                const sorry = `I'm sorry, I could not find this community.`;
+
+                if (!command.value) {
+                    return sorry;
+                }
+
+                const split = command.value.split("::");
+
+                if (!split || split.length < 2) {
+                    return sorry;
+                }
+
+                const prefix: any = split[0];
+
+                if (!prefix || ['f', 's', 'c', 'g', 'e', 'o'].indexOf(prefix) === -1) {
+                    return sorry;
+                }
+
+                let communityRes: Community | undefined;
+                let maybeDid: string | undefined;
+                let maybeProfile;
+                if (split[1].startsWith('https://')) {
+                    const urlSplit = split[1].split('/');
+                    if (!urlSplit || urlSplit.length < 5) {
+                        return sorry;
+                    }
+                    maybeProfile = await this.#agent.getProfile({ actor: urlSplit[4] });
+                } else {
+                    maybeProfile = await this.#agent.getProfile({ actor: split[1] });
+                }
+
+                console.log({ maybeProfile });
+                maybeDid = maybeProfile && maybeProfile.success && maybeProfile.data.did ? maybeProfile.data.did : undefined;
+
+                if (maybeDid) {
+                    communityRes = await this.db.selectFrom('did_to_community')
+                        .innerJoin('community', 'community.community', 'did_to_community.o')
+                        .select(['community.community', 'community.size', 'community.prefix'])
+                        .where('did_to_community.did', '=', maybeDid)
+                        .executeTakeFirst();
+                } else {
+                    return sorry;
+                }
+
+                if (!communityRes) {
+                    return sorry;
+                }
+
+                return this.showCommunity(command.user, communityRes);
+            }
+
+            await this.executeAndReply(showcommunity, command);
+
+        },
         "showcommunity": async (command: BotCommand) => {
             const showcommunity = async () => {
 
+                const sorry = `I'm sorry, I could not find this community.`;
                 const community = command.value;
                 const prefix: any = community?.substring(0, 1);
 
                 if (!community || !prefix) {
-                    return `I'm sorry, could not find this community.`
+                    return sorry;
                 }
 
                 const communityRes = await this.db.selectFrom('community')
@@ -292,42 +391,7 @@ option: [ home_communities, discover_communities, discover_rate, follows_rate ]`
                     return `I'm sorry, could not find this community.`
                 }
 
-                const posts = await this.db.selectFrom('post')
-                    .innerJoin('postrank', 'post.uri', 'postrank.uri')
-                    .select(({ fn, val, ref }) => [
-                        'post.author', 'post.uri',
-                        sql<string>`sum((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
-                    ])
-                    .where(prefix, '=', community)
-                    .limit(5)
-                    .groupBy('post.author')
-                    .orderBy('rank', 'desc')
-                    .execute();
-
-                const likes = await this.db.selectFrom('likescore')
-                    .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
-                    .select(({ fn, val, ref }) => [
-                        sql<string>`sum(likescore.score)`.as('rank')
-                    ])
-                    .where('likescore.author', '=', command.user)
-                    .where(prefix, '=', community)
-                    .groupBy(prefix)
-                    .executeTakeFirst();
-
-                const links = await this.resolveHandles(posts.slice(0, 5).map(post => post.author));
-                const likesFromYou = likes ? `
-❤️Your likes: ${likes?.rank}
-` : '';
-
-                return `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
-
-🔢Code: ${communityRes.community}
-${likesFromYou}
-👯Population: ${communityRes?.size}
-
-💬Top recent posters:
-${links}`;
-
+                return this.showCommunity(command.user, communityRes);
             }
 
             await this.executeAndReply(showcommunity, command);
@@ -338,26 +402,35 @@ ${links}`;
                 if (!command.value || !feedMap[command.value]) {
                     return `I'm sorry, no such feed exists.`
                 } else {
-                    const communities = await getUserCommunities(this.db, [], command.user, feedMap[command.value].config.communityConfig)
+                    const communities = await getUserCommunities(this.db, [], command.user, {
+                        mode: feedMap[command.value].config.mode,
+                        homeCommunities: feedMap[command.value].config.homeCommunities,
+                        discoverCommunities: feedMap[command.value].config.discoverCommunities,
+                        trustedFriendsLimit: feedMap[command.value].config.trustedFriendsLimit,
+                    })
 
-                    const homeSlice = sliceCommunityResponse(communities, feedMap[command.value].config.homeCommunities);
-                    const discoverSlice = sliceCommunityResponse(communities, feedMap[command.value].config.discoverCommunities, feedMap[command.value].config.homeCommunities);
-                    const totalCommunities = communities.topCommunitiesByLikes.communities.length + communities.exploreCommunitiesByLikes.communities.length;
-                    const notEnoughCommunities = totalCommunities < feedMap[command.value].config.communityConfig.totalCommunities;
+                    const homeCommunitiesCount = feedMap[command.value].config.homeCommunities ?? communities.feedOverrides?.home_communities;
+                    const discoverCommunitiesCount = feedMap[command.value].config.discoverCommunities ?? communities.feedOverrides?.discover_communities;
+                    const totalCommunities = homeCommunitiesCount + discoverCommunitiesCount;
+
+                    const homeSlice = sliceCommunityResponse(communities, homeCommunitiesCount);
+                    const discoverSlice = sliceCommunityResponse(communities, totalCommunities, homeCommunitiesCount);
+                    const totalResultingCommunities = communities.topCommunitiesByLikes.communities.length + communities.exploreCommunitiesByLikes.communities.length;
+                    const notEnoughCommunities = totalResultingCommunities < feedMap[command.value].config.homeCommunities + feedMap[command.value].config.discoverCommunities;
                     const homeCommunities = [communities.userCommunity.community, ...homeSlice.topCommunitiesByLikes.communities, ...homeSlice.exploreCommunitiesByLikes.communities]
                     const dicoverCommunities: string[] = [];
+                    const con = new AtUri("");
+                    const discoverPostsRate = communities.feedOverrides?.dicover_rate ?? feedMap[command.value].config.discoverPostsRate;
                     if (notEnoughCommunities) {
                         dicoverCommunities.push(communities.exploreCommunity.community);
                     }
                     dicoverCommunities.push(...discoverSlice.topCommunitiesByLikes.communities, ...discoverSlice.exploreCommunitiesByLikes.communities);
 
-                    return `📍You: ${communities.userCommunity.community}
+                    return `📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
 
-📰${feedMap[command.value].name} ${feedMap[command.value].communityPlural}:
+🏠Home (${discoverPostsRate - 1}/${discoverPostsRate}): ${homeCommunities.slice(0, 10)}
 
-🏠Home (${feedMap[command.value].config.discoverPostsRate - 1}/${feedMap[command.value].config.discoverPostsRate}): ${homeCommunities.slice(0, 10)}
-
-🗺️Discover (1/${feedMap[command.value].config.discoverPostsRate}): ${dicoverCommunities.slice(0, 10)}
+🗺️Discover (1/${discoverPostsRate}): ${dicoverCommunities.slice(0, 10)}
 
 🤖💡:
 
@@ -390,6 +463,45 @@ ${Bot.keyword} help`;
 
     login(loginOpts: AtpAgentLoginOpts) {
         return this.#agent.login(loginOpts);
+    }
+
+    async showCommunity(user: string, communityRes: Community) {
+        const prefix: any = communityRes.community.substring(0, 1);
+        const posts = await this.db.selectFrom('post')
+            .innerJoin('postrank', 'post.uri', 'postrank.uri')
+            .select(({ fn, val, ref }) => [
+                'post.author', 'post.uri',
+                sql<string>`sum((postrank.score-1)/power(timestampdiff(second,post.indexedAt,now())/3600 + 2,2))`.as('rank')
+            ])
+            .where(prefix, '=', communityRes.community)
+            .limit(5)
+            .groupBy('post.author')
+            .orderBy('rank', 'desc')
+            .execute();
+
+        const likes = await this.db.selectFrom('likescore')
+            .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
+            .select(({ fn, val, ref }) => [
+                sql<string>`sum(likescore.score)`.as('rank')
+            ])
+            .where('likescore.author', '=', user)
+            .where(prefix, '=', communityRes.community)
+            .groupBy(prefix)
+            .executeTakeFirst();
+
+        const links = await this.resolveHandles(posts.slice(0, 5).map(post => post.author));
+        const likesFromYou = likes ? `
+❤️Your likes: ${likes?.rank}
+` : '';
+
+        return `Type: ${communityHearts[prefix]} ${communityTypes[prefix]}
+
+🔢Code: ${communityRes.community}
+${likesFromYou}
+👯Population: ${communityRes?.size}
+
+💬Top recent posters:
+${links}`;
     }
 
     async getOverrideStatus(command: BotCommand) {
