@@ -223,7 +223,7 @@ Opt out: ${options?.optout ? 'Yes' : 'No'}
 
 Replies: ${options?.hide_replies ? 'Hidden' : 'Not hidden'}
 
-Follows: ${options?.hide_follows ? 'Showing' : 'Not showing'}
+Follows: ${options?.hide_follows ? 'Not showing' : 'Showing'}
 
 🤖💡:
 
