@@ -19,13 +19,13 @@ export const config: MyCommunityPlusTemplateConfig = {
   //home feed
   homeHNGravity: 4,
   homeSkipReplies: false,
-  homeCommunities: 7,
+  homeCommunities: 5,
   homePostLookupMultiplier: 3,
   homeRandomizeWithinRateLimit: false,
   //discover mix in
   discoverHNGravity: 3,
   discoverSkipReplies: true,
-  discoverCommunities: 10,
+  discoverCommunities: 5,
   discoverPostsRate: 5,
   discoverRandomizeWithinRateLimit: false,
   //input communities
