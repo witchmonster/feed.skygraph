@@ -279,7 +279,6 @@ ${Bot.keyword} showcommunity o2025039
 ${Bot.keyword} find o::skygraph.art
 ${Bot.keyword} followsoff mynebula+
 ${Bot.keyword} repliesoff mygalaxy+
-${Bot.keyword} setoption mygalaxy+::discover_communities=5
 ${Bot.keyword} setoption mygalaxy+::follows_rate=10`
                 } else if (command.value && command.value === 'options') {
                     return `🤖💡:
