@@ -23,11 +23,11 @@ interface CommunityResponse {
 }
 
 interface CommunityRequestConfig {
-    mode?: 'auto' | 'constellation' | 'nebula'
+    mode: 'auto' | 'constellation' | 'nebula'
     homeCommunities: number
     discoverCommunities: number
     trustedFriendsLimit: number
-    feed?: string
+    feed: string
 }
 
 interface FirstPageRequestConfig {
@@ -162,7 +162,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
     const expandDidToCommunityDotPrefix: any = `did_to_community.${expandCommunityPrefix}`;
 
     if (totalCommunities && totalCommunities > 0) {
-        const topLikedCommunitiesQuery = db.selectFrom('likescore')
+        let topLikedCommunitiesQuery = db.selectFrom('likescore')
             .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
             .select([topLikedCommunityDotPrefix, 'likescore.subject'])
             //choose communities by poasters user liked most
@@ -171,6 +171,11 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
             .groupBy(topLikedCommunityDotPrefix)
             .orderBy(sql`sum(likescore.score)`, 'desc')
             .limit(minCommunities);
+
+        if (excludeCommunities && excludeCommunities.communities.length > 0) {
+            topLikedCommunitiesQuery = topLikedCommunitiesQuery
+                .where(topLikedCommunityDotPrefix, 'not in', excludeCommunities.communities)
+        }
 
         // console.log(topLikedCommunitiesQuery.compile().sql);
 
@@ -182,7 +187,7 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
 
         if (topCommunitiesByLikes.length < minCommunities) {
             if (topCommunitiesByLikes.length > 0) {
-                const exploreCommunitiesQuery = db.selectFrom('likescore')
+                let exploreCommunitiesQuery = db.selectFrom('likescore')
                     .innerJoin('did_to_community', 'likescore.subject', 'did_to_community.did')
                     .select([expandDidToCommunityDotPrefix])
                     //choose "top trusted friends" from poasters user liked most
@@ -194,6 +199,11 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
                     .groupBy(expandDidToCommunityDotPrefix)
                     .orderBy(sql`sum(likescore.score)`, 'desc')
                     .limit(minCommunities - topCommunitiesByLikes.length);
+
+                if (excludeCommunities && excludeCommunities.communities.length > 0) {
+                    exploreCommunitiesQuery = exploreCommunitiesQuery
+                        .where(topLikedCommunityDotPrefix, 'not in', excludeCommunities.communities)
+                }
 
                 // console.log(exploreCommunitiesQuery.compile().sql);
 

@@ -102,7 +102,12 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
         if (!existingHomeRank || !existingDiscoverRank) {
             log.push(`Generating home first page...`);
             const firstPageCommunityResponse = sliceCommunityResponse(communityResponse, homeCommunities);
-            log.push({ topCommunitiesByLikes: firstPageCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: firstPageCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({
+                topCommunitiesByLikes: firstPageCommunityResponse.topCommunitiesByLikes.communities,
+                exploreCommunities: firstPageCommunityResponse.exploreCommunitiesByLikes.communities,
+                addedCommunities: firstPageCommunityResponse.includeCommunities.communities,
+                excludedCommunities: firstPageCommunityResponse.excludeCommunities.communities
+            });
             const firstPageRes = await getFirstPagePosts(ctx, {
                 withWideExplore: notEnoughCommunities,
                 repliesRatio: config.firstPageReplyRatio,
@@ -114,7 +119,12 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             lastHomeRank = 99999999;
             log.push(`Generating discover first page...`);
             const discoverCommunityResponse = sliceCommunityResponse(communityResponse, totalCommunities, homeCommunities);
-            log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({
+                topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities,
+                exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities,
+                addedCommunities: discoverCommunityResponse.includeCommunities.communities,
+                excludedCommunities: discoverCommunityResponse.excludeCommunities.communities
+            });
             const discoverRes: any = await getFirstPagePosts(ctx, {
                 withWideExplore: notEnoughCommunities,
                 repliesRatio: config.discoverSkipReplies ? 0 : config.firstPageReplyRatio,
@@ -137,7 +147,12 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             //home part
             log.push(`Generating home posts...`);
             const homeCommunityResponse = sliceCommunityResponse(communityResponse, homeCommunities);
-            log.push({ topCommunitiesByLikes: homeCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: homeCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({
+                topCommunitiesByLikes: homeCommunityResponse.topCommunitiesByLikes.communities,
+                exploreCommunities: homeCommunityResponse.exploreCommunitiesByLikes.communities,
+                addedCommunities: homeCommunityResponse.includeCommunities.communities,
+                excludedCommunities: homeCommunityResponse.excludeCommunities.communities
+            });
             const homeRes: any = await getRankedPosts(ctx, {
                 existingRank: existingHomeRank,
                 withWideExplore: notEnoughCommunities,
@@ -149,7 +164,12 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
             //discover part
             log.push(`Generating discover posts...`);
             const discoverCommunityResponse = sliceCommunityResponse(communityResponse, totalCommunities, homeCommunities);
-            log.push({ topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities, exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities });
+            log.push({
+                topCommunitiesByLikes: discoverCommunityResponse.topCommunitiesByLikes.communities,
+                exploreCommunities: discoverCommunityResponse.exploreCommunitiesByLikes.communities,
+                addedCommunities: discoverCommunityResponse.includeCommunities.communities,
+                excludedCommunities: discoverCommunityResponse.excludeCommunities.communities
+            });
             const discoverRes: any = await getRankedPosts(ctx, {
                 existingRank: existingDiscoverRank,
                 withWideExplore: notEnoughCommunities,

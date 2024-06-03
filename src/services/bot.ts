@@ -200,37 +200,37 @@ ${Bot.keyword} opt out`;
         },
         "setoption": async (command: BotCommand) => {
             const setoption = async () => {
-                const invalidCommand = `
+                const invalidCommand = `Invalid command or value.
 
 🤖💡:
+${Bot.keyword} help
 
-!skygraphtest help`
+${Bot.keyword} help examples`
                 if (!command.value) {
-                    return `Invalid command value.`;
+                    return invalidCommand;
                 }
                 const split = command.value.split("::")
                 if (!split || split.length < 2) {
-                    return `Invalid command value.`;
+                    return invalidCommand;
                 }
                 if (!feedMap[split[0]]) {
-                    return `Feed doesn't exist`;
+                    return invalidCommand;
                 }
                 const feed = feedMap[split[0]].shortname;
                 const splitValue = split[1].split("=");
                 if (!splitValue || splitValue.length < 2) {
-                    return `Invalid command value.`;
+                    return invalidCommand;
                 }
                 const option = splitValue[0];
                 let optionValue;
                 optionValue = (option === 'c_include'
                     || option === 'c_exclude') ? splitValue[1] : +splitValue[1];
-                console.log({ optionValue });
 
                 if (!optionValue || (option === 'home_communities'
                     || option === 'discover_communities'
                     || option === 'discover_rate'
                     || option === 'follows_rate') && +optionValue < 1) {
-                    return `Invalid command value.`
+                    return invalidCommand
                 }
 
                 if (option === 'home_communities'
@@ -248,16 +248,20 @@ ${Bot.keyword} opt out`;
                     values[option] = optionValue;
                     const update = {};
                     update[option] = optionValue;
-                    const res = await this.db.insertInto('feed_overrides')
-                        .values(values)
-                        .onDuplicateKeyUpdate(update)
-                        .executeTakeFirst();
 
+                    try {
+                        await this.db.insertInto('feed_overrides')
+                            .values(values)
+                            .onDuplicateKeyUpdate(update)
+                            .executeTakeFirst();
+                    } catch (err) {
+                        return invalidCommand;
+                    }
                     // console.log({ res });
 
                     return await this.getOverrideStatusReply({ ...command, value: feedMap[split[0]].key });
                 } else {
-                    return `Invalid command value.`;
+                    return invalidCommand;
                 }
             }
             await this.executeAndReply(setoption, command);
@@ -348,12 +352,12 @@ ${Bot.keyword} help options`;
                     maybeProfile = await this.#agent.getProfile({ actor: split[1] });
                 }
 
-                console.log({ maybeProfile });
                 maybeDid = maybeProfile && maybeProfile.success && maybeProfile.data.did ? maybeProfile.data.did : undefined;
 
+                const didToPrefix: any = `did_to_community.${prefix}`
                 if (maybeDid) {
                     communityRes = await this.db.selectFrom('did_to_community')
-                        .innerJoin('community', 'community.community', 'did_to_community.o')
+                        .innerJoin('community', 'community.community', didToPrefix)
                         .select(['community.community', 'community.size', 'community.prefix'])
                         .where('did_to_community.did', '=', maybeDid)
                         .executeTakeFirst();
@@ -407,7 +411,8 @@ ${Bot.keyword} help options`;
                         homeCommunities: feedMap[command.value].config.homeCommunities,
                         discoverCommunities: feedMap[command.value].config.discoverCommunities,
                         trustedFriendsLimit: feedMap[command.value].config.trustedFriendsLimit,
-                    })
+                        feed: feedMap[command.value].config.feedKey
+                    });
 
                     const homeCommunitiesCount = feedMap[command.value].config.homeCommunities ?? communities.feedOverrides?.home_communities;
                     const discoverCommunitiesCount = feedMap[command.value].config.discoverCommunities ?? communities.feedOverrides?.discover_communities;
@@ -417,9 +422,8 @@ ${Bot.keyword} help options`;
                     const discoverSlice = sliceCommunityResponse(communities, totalCommunities, homeCommunitiesCount);
                     const totalResultingCommunities = communities.topCommunitiesByLikes.communities.length + communities.exploreCommunitiesByLikes.communities.length;
                     const notEnoughCommunities = totalResultingCommunities < feedMap[command.value].config.homeCommunities + feedMap[command.value].config.discoverCommunities;
-                    const homeCommunities = [communities.userCommunity.community, ...homeSlice.topCommunitiesByLikes.communities, ...homeSlice.exploreCommunitiesByLikes.communities]
+                    const homeCommunities = [communities.userCommunity.community, ...communities.includeCommunities.communities ?? [], ...homeSlice.topCommunitiesByLikes.communities, ...homeSlice.exploreCommunitiesByLikes.communities]
                     const dicoverCommunities: string[] = [];
-                    const con = new AtUri("");
                     const discoverPostsRate = communities.feedOverrides?.dicover_rate ?? feedMap[command.value].config.discoverPostsRate;
                     if (notEnoughCommunities) {
                         dicoverCommunities.push(communities.exploreCommunity.community);
