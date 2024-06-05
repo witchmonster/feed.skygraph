@@ -70,7 +70,7 @@ export abstract class FirehoseSubscriptionBase {
       //STR_TO_DATE(SUBSTRING(indexedAt from 1 for 19),'%Y-%m-%dT%TZ')
       //instead of indexedAt
       .where('indexedAt', '<', `DATE_SUB(now(), INTERVAL ${ttl})`)
-      .limit(100)
+      .limit(10000)
       .execute()
 
     console.log(`-------------- DELETED: ${deleted && deleted.length > 0 && deleted[0] ? deleted[0].numDeletedRows : 'none'} -------------`);
