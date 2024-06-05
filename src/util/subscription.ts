@@ -52,9 +52,9 @@ export abstract class FirehoseSubscriptionBase {
           console.log(evt.seq);
         }
         // cleanup older
-        if (isCommit(evt) && evt.seq % 1000000 === 0) {
-          console.log('cleaning up older posts');
-          // await this.cleanUpTTL('4 day')
+        if (isCommit(evt) && evt.seq % 2000 === 0) {
+          console.log('-------------- cleaning up older posts -------------');
+          await this.cleanUpTTL('3 day')
         }
       }
     } catch (err) {
@@ -64,13 +64,17 @@ export abstract class FirehoseSubscriptionBase {
   }
 
   async cleanUpTTL(ttl: string) {
-    await this.db
+    const deleted = await this.db
       .deleteFrom('post')
       //use
       //STR_TO_DATE(SUBSTRING(indexedAt from 1 for 19),'%Y-%m-%dT%TZ')
       //instead of indexedAt
       .where('indexedAt', '<', `DATE_SUB(now(), INTERVAL ${ttl})`)
+      .limit(100)
       .execute()
+
+    console.log(`-------------- DELETED: ${deleted && deleted.length > 0 && deleted[0] ? deleted[0].numDeletedRows : 'none'} -------------`);
+
   }
 
   async updateCursor(cursor: number) {

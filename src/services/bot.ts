@@ -545,10 +545,10 @@ ${Bot.keyword} help`;
 Opt out: ${options?.optout ? 'Yes' : 'No'}
 Replies: ${options?.hide_replies ? 'Hidden' : 'Showing'}
 Follows: ${options?.hide_follows ? 'Hidden' : 'Showing'}
-Follows rate: ${options?.follows_rate ? options?.follows_rate : feedConf.config.followsPostsRate}
-Home communities: ${options?.home_communities ? options?.home_communities : feedConf.config.homeCommunities}
-Discover rate: ${options?.dicover_rate ? options?.dicover_rate : feedConf.config.discoverPostsRate}
-Discover communities: ${options?.discover_communities ? options?.discover_communities : feedConf.config.discoverCommunities}
+Follows rate: ${options?.follows_rate ?? feedConf.config.followsPostsRate}
+Home communities: ${options?.home_communities ?? feedConf.config.homeCommunities}
+Discover rate: ${options?.dicover_rate ?? feedConf.config.discoverPostsRate}
+Discover communities: ${options?.discover_communities ?? feedConf.config.discoverCommunities}
 Included communities: ${options?.c_include?.slice(0, 5) ?? []}
 Excluded communities: ${options?.c_exclude?.slice(0, 5) ?? []}
 

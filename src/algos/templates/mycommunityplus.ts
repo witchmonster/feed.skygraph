@@ -99,6 +99,7 @@ export const generateCommunityPlusFeed = async (feedContext: FeedContext, config
         //handle overrides
         const totalResultingCommunities = communityResponse.topCommunitiesByLikes.communities.length + communityResponse.exploreCommunitiesByLikes.communities.length;
         const notEnoughCommunities = totalResultingCommunities < totalCommunities;
+        console.log({ homeCommunities, discoverCommunities, totalCommunities, discoverRate, followsRate, notEnoughCommunities })
         if (!existingHomeRank || !existingDiscoverRank) {
             log.push(`Generating home first page...`);
             const firstPageCommunityResponse = sliceCommunityResponse(communityResponse, homeCommunities);
