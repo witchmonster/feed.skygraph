@@ -12,6 +12,7 @@ import {
   isCommit,
 } from '../lexicon/types/com/atproto/sync/subscribeRepos'
 import { Database } from '../db'
+import { sql } from 'kysely'
 
 export abstract class FirehoseSubscriptionBase {
   public sub: Subscription<RepoEvent>
@@ -54,7 +55,7 @@ export abstract class FirehoseSubscriptionBase {
         // cleanup older
         if (isCommit(evt) && evt.seq % 2000 === 0) {
           console.log('-------------- cleaning up older posts -------------');
-          await this.cleanUpTTL('3 day')
+          await this.cleanUpTTL()
         }
       }
     } catch (err) {
@@ -63,14 +64,10 @@ export abstract class FirehoseSubscriptionBase {
     }
   }
 
-  async cleanUpTTL(ttl: string) {
-    const deleted = await this.db
-      .deleteFrom('post')
-      .where('indexedAt', '<', `DATE_SUB(now(), INTERVAL ${ttl})`)
-      .limit(10000)
-      .execute()
+  async cleanUpTTL() {
+    const deleted = await sql`delete from post where indexedAt < DATE_SUB(now(), INTERVAL 3 day) limit 10000`.execute(this.db)
 
-    console.log(`-------------- DELETED: ${deleted && deleted.length > 0 && deleted[0] ? deleted[0].numDeletedRows : 'none'} -------------`);
+    console.log(`-------------- DELETED: ${deleted && deleted.numAffectedRows ? deleted.numAffectedRows : 'none'} -------------`);
 
   }
 
