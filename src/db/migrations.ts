@@ -485,7 +485,24 @@ migrations['020'] = {
   },
 };
 
-// migrations['021'] = {
+migrations['021'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_score')
+        .on('likescore')
+        .column('score')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_score, already exists`);
+    }
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.dropIndex('idx_likescore_to_score').execute();
+  },
+};
+
+// migrations['022'] = {
 //   async up(db: Kysely<MysqlDialect>) {
 //     await db.schema
 //       .alterTable('community_v5')
