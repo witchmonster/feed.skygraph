@@ -1,6 +1,7 @@
 import { Kysely, Migration, MigrationProvider, MysqlDialect, sql } from 'kysely'
 import { Database } from './index'
 import communities from '../../input/communities.json'
+// import communitiesV5 from '../../input/communitiesV5.json'
 
 const migrations: Record<string, Migration> = {}
 
@@ -454,6 +455,80 @@ migrations['018'] = {
       .execute();
   },
   async down(db: Kysely<MysqlDialect>) {
-    await db.schema.alterTable('c_include').dropColumn('feed_overrides').execute();
+    await db.schema.alterTable('feed_overrides').dropColumn('c_include').execute();
   },
 };
+
+migrations['019'] = {
+  async up(db: Database) {
+    //not using that anymore
+    await sql`drop event if exists ClearPosts`.execute(db);
+    await sql`CREATE EVENT if not exists
+    ClearBinlogs
+    ON SCHEDULE EVERY 1 DAY
+    DO
+    PURGE BINARY LOGS BEFORE DATE_SUB(now(), interval 3 day)`.execute(db);
+  }
+};
+
+migrations['020'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('post')
+      .addColumn('version', 'varchar(4)')
+      .execute();
+
+    await sql`UPDATE post set version='v4' where version is null`.execute(db);
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('post').dropColumn('version').execute();
+  },
+};
+
+// migrations['021'] = {
+//   async up(db: Kysely<MysqlDialect>) {
+//     await db.schema
+//       .alterTable('community_v5')
+//       .addColumn('community', 'varchar(255)', (col) => col.primaryKey())
+//       .addColumn('size', 'int4', (col) => col.notNull())
+//       .addColumn('prefix', 'varchar(4)', (col) => col.notNull())
+//       .addColumn('name', 'varchar(255)')
+//       .addColumn('label', 'varchar(255)')
+//       .addColumn('leader', 'varchar(255)')
+//       .addColumn('conductance', 'integer')
+//       .execute();
+//     communitiesV5.nodes.forEach(async (community, i) => {
+//       const communityCode = community.community;
+//       await db.insertInto('community_v5')
+//         .values({
+//           community: communityCode,
+//           version: community.version,
+//           name: community.name,
+//           label: community.label,
+//           leader: community.leader_did,
+//           conductance: community.conductance,
+//           size: community.size,
+//           prefix: community.prefix
+//         })
+//         .ignore()
+//         .execute();
+//     })
+//     await db.schema
+//       .createTable('did_to_community_v5')
+//       .ifNotExists()
+//       .addColumn('did', 'varchar(255)', (col) => col.primaryKey())
+//       .addColumn('f', 'varchar(255)')
+//       .addColumn('s', 'varchar(255)')
+//       .addColumn('c', 'varchar(255)')
+//       .addColumn('g', 'varchar(255)')
+//       .addColumn('e', 'varchar(255)')
+//       .addColumn('o', 'varchar(255)')
+//       .execute();
+
+//     await sql`LOAD DATA INFILE '/var/lib/mysql-files/did_to_communities_v5.csv' INTO TABLE did_to_community_v5 FIELDS TERMINATED BY ',' lines terminated BY '\n'`.execute(db);
+//   },
+//   async down(db: Kysely<MysqlDialect>) {
+//     await db.schema.dropTable('community_v5').execute();
+//     await db.schema.dropTable('did_to_community_v5').execute();
+//   },
+// };
