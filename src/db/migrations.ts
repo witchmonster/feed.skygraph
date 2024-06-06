@@ -511,14 +511,14 @@ migrations['022'] = {
       .addColumn('from_s', 'varchar(16)')
       .addColumn('from_c', 'varchar(16)')
       .addColumn('from_g', 'varchar(16)')
-      // .addColumn('from_e', 'varchar(16)')
-      // .addColumn('from_o', 'varchar(16)')
+      .addColumn('from_e', 'varchar(16)')
+      .addColumn('from_o', 'varchar(16)')
       .addColumn('to_f', 'varchar(16)')
       .addColumn('to_s', 'varchar(16)')
       .addColumn('to_c', 'varchar(16)')
       .addColumn('to_g', 'varchar(16)')
-      // .addColumn('to_e', 'varchar(16)')
-      // .addColumn('to_o', 'varchar(16)')
+      .addColumn('to_e', 'varchar(16)')
+      .addColumn('to_o', 'varchar(16)')
       .execute();
 
     try {
