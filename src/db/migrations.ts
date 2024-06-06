@@ -502,7 +502,165 @@ migrations['021'] = {
   },
 };
 
-// migrations['022'] = {
+migrations['022'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('likescore')
+      .addColumn('version', 'varchar(4)')
+      .addColumn('from_f', 'varchar(16)')
+      .addColumn('from_s', 'varchar(16)')
+      .addColumn('from_c', 'varchar(16)')
+      .addColumn('from_g', 'varchar(16)')
+      // .addColumn('from_e', 'varchar(16)')
+      // .addColumn('from_o', 'varchar(16)')
+      .addColumn('to_f', 'varchar(16)')
+      .addColumn('to_s', 'varchar(16)')
+      .addColumn('to_c', 'varchar(16)')
+      .addColumn('to_g', 'varchar(16)')
+      // .addColumn('to_e', 'varchar(16)')
+      // .addColumn('to_o', 'varchar(16)')
+      .execute();
+
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_f')
+        .on('likescore')
+        .column('from_f')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_f, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_s')
+        .on('likescore')
+        .column('from_s')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_s, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_c')
+        .on('likescore')
+        .column('from_c')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_c, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_g')
+        .on('likescore')
+        .column('from_g')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_g, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_e')
+        .on('likescore')
+        .column('from_e')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_e, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_from_o')
+        .on('likescore')
+        .column('from_o')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_from_o, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_f')
+        .on('likescore')
+        .column('to_f')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_f, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_s')
+        .on('likescore')
+        .column('to_s')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_s, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_c')
+        .on('likescore')
+        .column('to_c')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_c, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_g')
+        .on('likescore')
+        .column('to_g')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_g, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_e')
+        .on('likescore')
+        .column('to_e')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_e, already exists`);
+    }
+    try {
+      await db.schema
+        .createIndex('idx_likescore_to_to_o')
+        .on('likescore')
+        .column('to_o')
+        .execute();
+    } catch (err) {
+      console.log(`Skipping index idx_likescore_to_to_o, already exists`);
+    }
+
+    await sql`UPDATE likescore set version='v4' where version is null`.execute(db);
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('likescore').dropColumn('from_f').execute();
+    await db.schema.alterTable('likescore').dropColumn('from_s').execute();
+    await db.schema.alterTable('likescore').dropColumn('from_c').execute();
+    await db.schema.alterTable('likescore').dropColumn('from_g').execute();
+    await db.schema.alterTable('likescore').dropColumn('from_e').execute();
+    await db.schema.alterTable('likescore').dropColumn('from_o').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_f').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_s').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_c').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_g').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_e').execute();
+    await db.schema.alterTable('likescore').dropColumn('to_o').execute();
+    await db.schema.dropIndex("idx_likescore_to_from_f").execute();
+    await db.schema.dropIndex("idx_likescore_to_from_s").execute();
+    await db.schema.dropIndex("idx_likescore_to_from_c").execute();
+    await db.schema.dropIndex("idx_likescore_to_from_g").execute();
+    await db.schema.dropIndex("idx_likescore_to_from_e").execute();
+    await db.schema.dropIndex("idx_likescore_to_from_o").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_f").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_s").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_c").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_g").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_e").execute();
+    await db.schema.dropIndex("idx_likescore_to_to_o").execute();
+  },
+};
+
+// migrations['023'] = {
 //   async up(db: Kysely<MysqlDialect>) {
 //     await db.schema
 //       .alterTable('community_v5')

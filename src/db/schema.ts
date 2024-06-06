@@ -2,6 +2,11 @@ export type DatabaseSchema = {
   post: Post
   did_to_community: CommunityToDid
   community: Community
+  // did_to_community_lp: CommunityToDid
+  // did_to_community_old: CommunityToDid
+  // did_to_community_current: CommunityToDid
+  // community_old: Community
+  // community_current: Community
   likescore: LikeScore
   postrank: PostRank
   sub_state: SubState
@@ -18,6 +23,7 @@ export type Post = {
   author: string
   community: string | null
   indexedAt: string
+  version?: string
   f?: string
   s?: string
   c?: string
@@ -63,6 +69,19 @@ export type LikeScore = {
   author: string
   subject: string
   score: number
+  version?: string
+  from_f?: string
+  from_s?: string
+  from_c?: string
+  from_g?: string
+  from_e?: string
+  from_o?: string
+  to_f?: string
+  to_s?: string
+  to_c?: string
+  to_g?: string
+  to_e?: string
+  to_o?: string
 }
 export type PostRank = {
   uri: string
