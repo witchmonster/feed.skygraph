@@ -53,7 +53,7 @@ export abstract class FirehoseSubscriptionBase {
           console.log(evt.seq);
         }
         // cleanup older
-        if (isCommit(evt) && evt.seq % 2000 === 0) {
+        if (isCommit(evt) && evt.seq % 20000 === 0) {
           console.log('-------------- cleaning up older posts -------------');
           await this.cleanUpTTL()
         }
