@@ -663,6 +663,70 @@ migrations['022'] = {
 // migrations['023'] = {
 //   async up(db: Kysely<MysqlDialect>) {
 //     await db.schema
+//       .createTable('handlesearch')
+//       .ifNotExists()
+//       .addColumn('handle', 'varchar(255)', (col) => col.notNull())
+//       .addColumn('did', 'varchar(255)', (col) => col.notNull())
+//       .addPrimaryKeyConstraint('primary_key', ['did', 'handle'])
+//       .execute();
+//     try {
+//       await sql`ALTER TABLE handlesearch ADD FULLTEXT INDEX 'idx_handlesearch_to_handle_ft'(handle)`.execute(db);
+//     } catch (err) {
+//       console.log(`Skipping index idx_handlesearch_to_handle_ft, already exists`);
+//     }
+//     await sql`LOAD DATA INFILE '/var/lib/mysql-files/handles.csv' IGNORE INTO TABLE handlesearch FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' lines terminated BY '\n'`.execute(db);
+//   },
+//   async down(db: Kysely<MysqlDialect>) {
+//     await db.schema.dropTable('handlesearch').execute()
+//     await db.schema.dropIndex('idx_handlesearch_to_handle_ft').execute()
+//   },
+// };
+
+// migrations['024'] = {
+//   async up(db: Kysely<MysqlDialect>) {
+//     await db.schema
+//       .alterTable('handlesearch')
+//       .addColumn('prefix3', 'varchar(3)')
+//       .execute();
+
+//     try {
+//       await db.schema
+//         .createIndex('idx_handlesearch_to_prefix3')
+//         .on('handlesearch')
+//         .column('prefix3')
+//         .execute();
+//     } catch (err) {
+//       console.log(`Skipping index idx_handlesearch_to_prefix3, already exists`);
+//     }
+
+//     await sql`update handlesearch h set h.prefix3 = SUBSTRING(h.handle, 1, 3) where prefix3 is null`.execute(db);
+//   },
+//   async down(db: Kysely<MysqlDialect>) {
+//     await db.schema.alterTable('handlesearch').dropColumn('prefix3').execute();
+//     await db.schema.dropIndex('idx_handlesearch_to_prefix3').execute();
+//   },
+// };
+
+// migrations['025'] = {
+//   async up(db: Kysely<MysqlDialect>) {
+//     try {
+//       await db.schema
+//         .createIndex('idx_handlesearch_to_handle')
+//         .on('handlesearch')
+//         .column('handle')
+//         .execute();
+//     } catch (err) {
+//       console.log(`Skipping index idx_handlesearch_to_handle, already exists`);
+//     }
+//   },
+//   async down(db: Kysely<MysqlDialect>) {
+//     await db.schema.dropIndex('idx_handlesearch_to_handle').execute();
+//   },
+// };
+
+// migrations['026'] = {
+//   async up(db: Kysely<MysqlDialect>) {
+//     await db.schema
 //       .alterTable('community_v5')
 //       .addColumn('community', 'varchar(255)', (col) => col.primaryKey())
 //       .addColumn('size', 'int4', (col) => col.notNull())

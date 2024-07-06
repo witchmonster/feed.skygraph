@@ -256,30 +256,32 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
       } = toCommunities.reduce((a, v) => ({ ...a, [v.did]: { did: v.did, to_f: v.f, to_s: v.s, to_c: v.c, to_g: v.g, to_e: v.e, to_o: v.o } }), {});
 
-      if (fromCommunities?.length === likesToCreate.length && toCommunities?.length === likesToCreate.length) {
-        const values = likesToCreate.map(like => {
-          let likesWithCommunitiesreturn = { ...like, ...fromCommunityMap[like.author], ...toCommunityMap[like.subject], ...{ version: 'v4' } };
-          delete likesWithCommunitiesreturn.did;
-          return likesWithCommunitiesreturn;
-        });
-        await this.db
-          .insertInto('likescore')
-          .values(values)
-          .onDuplicateKeyUpdate((eb) => ({
-            score: eb('score', '+', 1),
-            version: 'v4'
-          }))
-          .execute()
-      } else {
-        await this.db
-          .insertInto('likescore')
-          .values(likesToCreate)
-          .onDuplicateKeyUpdate((eb) => ({
-            score: eb('score', '+', 1),
-            version: 'v4'
-          }))
-          .execute()
-      }
+      const values = likesToCreate.map(like => {
+        const froms = fromCommunityMap[like.author] ?? {};
+        const tos = toCommunityMap[like.subject] ?? {}
+        let likesWithCommunitiesreturn = { ...like, ...froms, ...tos, ...{ version: 'v4' } };
+        delete likesWithCommunitiesreturn.did;
+        return likesWithCommunitiesreturn;
+      });
+      await this.db
+        .insertInto('likescore')
+        .values(values)
+        .onDuplicateKeyUpdate((eb) => ({
+          score: eb('score', '+', 1),
+          version: 'v4'
+        }))
+        .execute();
+
+      // update likescore l set from_e = (select e from did_to_community where did = l.author);
+      // update likescore l set from_o = (select o from did_to_community where did = l.author);
+      // update likescore l set to_s = (select s from did_to_community where did = l.subject);
+      // update likescore l set to_f = (select f from did_to_community where did = l.subject);
+      // update likescore l set to_s = (select s from did_to_community where did = l.subject);
+      // update likescore l set to_c = (select c from did_to_community where did = l.subject);
+      // update likescore l set to_g = (select g from did_to_community where did = l.subject);
+      // update likescore l set to_e = (select e from did_to_community where did = l.subject);
+      // update likescore l set to_o = (select o from did_to_community where did = l.subject);
+
       await this.db
         .insertInto('postrank')
         .values(rankToCreate)
