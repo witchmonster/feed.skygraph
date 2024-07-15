@@ -50,6 +50,7 @@ const feedMap: {
         config: MyCommunityPlusTemplateConfig,
         name: string,
         shortname: string,
+        prefix: string,
         communityNoun: string,
         communityPlural: string
     }
@@ -59,6 +60,7 @@ const feedMap: {
         config: mygalaxyPlusConfig,
         name: mygalaxyPlusConfig.feedName,
         shortname: mygalaxyPlusConfig.shortName,
+        prefix: "e",
         communityNoun: "Nebula",
         communityPlural: "Nebulas"
     },
@@ -67,6 +69,7 @@ const feedMap: {
         config: myNebulaPlusConfig,
         name: myNebulaPlusConfig.feedName,
         shortname: myNebulaPlusConfig.shortName,
+        prefix: "o",
         communityNoun: "Constellation",
         communityPlural: "Constellations"
     }
@@ -85,7 +88,7 @@ export default class Bot {
 
     static keyword: string = process.env.BSKY_BOT_KEYWORD || "!skygraphtest";
 
-    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson', 'setoption', 'find'];
+    static commands = ['whereami', 'showcommunity', 'showfeed', 'opt', 'repliesoff', 'replieson', 'status', 'help', 'followsoff', 'followson', 'showless', 'undoshowless', 'setoption', 'find'];
 
     static defaultOptions: BotOptions = {
         service: bskyService,
@@ -267,48 +270,283 @@ ${Bot.keyword} help examples`
             }
             await this.executeAndReply(setoption, command);
         },
+        "showless": async (command: BotCommand) => {
+            const setoption = async () => {
+                const sorry = `I'm sorry, I could not find this community.`;
+
+                const invalidCommand = `Invalid command or value.
+
+🤖💡:
+${Bot.keyword} help
+
+${Bot.keyword} help examples`
+                if (!command.value) {
+                    return invalidCommand;
+                }
+                const split = command.value.split("::")
+                if (!split || split.length < 2) {
+                    return invalidCommand;
+                }
+                if (!feedMap[split[0]]) {
+                    return invalidCommand;
+                }
+                const feed = feedMap[split[0]].shortname;
+                const prefix = feedMap[split[0]].prefix;
+
+                const postUrl = split[1];
+
+                let maybeDid: string | undefined;
+                let maybeProfile;
+                if (postUrl.startsWith('https://')) {
+                    const urlSplit = split[1].split('/');
+                    if (!urlSplit || urlSplit.length < 5) {
+                        return invalidCommand;
+                    }
+                    console.log("----------------- showless -----------------")
+                    console.log(split[1]);
+                    console.log(urlSplit[4]);
+                    maybeProfile = await this.#agent.getProfile({ actor: urlSplit[4] });
+                } else {
+                    maybeProfile = await this.#agent.getProfile({ actor: split[1] });
+                }
+
+                maybeDid = maybeProfile && maybeProfile.success && maybeProfile.data.did ? maybeProfile.data.did : undefined;
+                console.log(maybeDid)
+
+                let existingOverrides;
+                try {
+                    existingOverrides = await this.db.selectFrom('feed_overrides')
+                        .select(['exclude_c_by_did', 'c_exclude'])
+                        .where('user', '=', command.user)
+                        .where('feed', '=', feed)
+                        .executeTakeFirst();
+                } catch (err) {
+                    return invalidCommand;
+                }
+
+                const cbyDidValues = {
+                    user: command.user,
+                    feed: feed,
+                    optout: false
+                };
+                cbyDidValues['exclude_c_by_did'] = JSON.stringify([maybeDid]);
+                const cbyDidUpdate = {};
+                cbyDidUpdate['exclude_c_by_did'] = existingOverrides?.exclude_c_by_did
+                    ? JSON.stringify([...new Set([...existingOverrides?.exclude_c_by_did, maybeDid])])
+                    : JSON.stringify([maybeDid]);
+
+                try {
+                    await this.db.insertInto('feed_overrides')
+                        .values(cbyDidValues)
+                        .onDuplicateKeyUpdate(cbyDidUpdate)
+                        .executeTakeFirst();
+                } catch (err) {
+                    console.log(err);
+                    return invalidCommand;
+                }
+
+                console.log(cbyDidValues);
+
+                const didToPrefix: any = `did_to_community.${prefix}`
+                let communityRes;
+                if (maybeDid) {
+                    communityRes = await this.db.selectFrom('did_to_community')
+                        .innerJoin('community', 'community.community', didToPrefix)
+                        .select(['community.community', 'community.size', 'community.prefix', 'community.version'])
+                        .where('did_to_community.did', '=', maybeDid)
+                        .where('did_to_community.version', '=', VERSION)
+                        .executeTakeFirst();
+                } else {
+                    return sorry;
+                }
+
+                if (!communityRes) {
+                    return sorry;
+                }
+
+                const values = {
+                    user: command.user,
+                    feed: feed,
+                    optout: false
+                };
+                values['c_exclude'] = JSON.stringify([communityRes.community]);
+                const update = {};
+                update['c_exclude'] = existingOverrides?.c_exclude
+                    ? JSON.stringify([...new Set([...existingOverrides?.c_exclude, communityRes.community])])
+                    : JSON.stringify([maybeDid]);
+
+
+                console.log(values);
+                console.log("----------------- showless -----------------")
+
+                try {
+                    await this.db.insertInto('feed_overrides')
+                        .values(values)
+                        .onDuplicateKeyUpdate(update)
+                        .executeTakeFirst();
+                } catch (err) {
+                    return invalidCommand;
+                }
+
+                return await this.getOverrideStatusReply({ ...command, value: feedMap[split[0]].key });
+
+            }
+            await this.executeAndReply(setoption, command);
+        },
+        "undoshowless": async (command: BotCommand) => {
+            const setoption = async () => {
+                const sorry = `I'm sorry, I could not find this community.`;
+
+                const invalidCommand = `Invalid command or value.
+
+🤖💡:
+${Bot.keyword} help
+
+${Bot.keyword} help examples`
+                if (!command.value) {
+                    return invalidCommand;
+                }
+                const split = command.value.split("::")
+                if (!split || split.length < 2) {
+                    return invalidCommand;
+                }
+                if (!feedMap[split[0]]) {
+                    return invalidCommand;
+                }
+                const feed = feedMap[split[0]].shortname;
+                const prefix = feedMap[split[0]].prefix;
+
+                const postUrl = split[1];
+
+                let maybeDid: string | undefined;
+                let maybeProfile;
+                if (postUrl.startsWith('https://')) {
+                    const urlSplit = split[1].split('/');
+                    if (!urlSplit || urlSplit.length < 5) {
+                        return invalidCommand;
+                    }
+                    console.log("----------------- undo showless -----------------")
+                    console.log(split[1]);
+                    console.log(urlSplit[4]);
+                    maybeProfile = await this.#agent.getProfile({ actor: urlSplit[4] });
+                } else {
+                    maybeProfile = await this.#agent.getProfile({ actor: split[1] });
+                }
+
+                maybeDid = maybeProfile && maybeProfile.success && maybeProfile.data.did ? maybeProfile.data.did : undefined;
+                console.log(maybeDid)
+
+                let existingOverrides;
+                try {
+                    existingOverrides = await this.db.selectFrom('feed_overrides')
+                        .select(['exclude_c_by_did', 'c_exclude'])
+                        .where('user', '=', command.user)
+                        .where('feed', '=', feed)
+                        .executeTakeFirst();
+                } catch (err) {
+                    return invalidCommand;
+                }
+
+                if (!existingOverrides) {
+                    return invalidCommand;
+                }
+
+                const existingDids: string[] = existingOverrides.exclude_c_by_did;
+                console.log(existingDids);
+                const excludedDids: string[] = [];
+                existingDids.forEach(did => {
+                    if (did !== maybeDid) { excludedDids.push(did) }
+                });
+                console.log(excludedDids);
+
+                try {
+                    await this.db.updateTable('feed_overrides')
+                        .set('exclude_c_by_did', sql`${JSON.stringify(excludedDids)}`)
+                        .executeTakeFirst();
+                } catch (err) {
+                    console.log(err);
+                    return invalidCommand;
+                }
+
+                const didToPrefix: any = `did_to_community.${prefix}`
+                let communityRes;
+                if (maybeDid) {
+                    communityRes = await this.db.selectFrom('did_to_community')
+                        .innerJoin('community', 'community.community', didToPrefix)
+                        .select(['community.community', 'community.size', 'community.prefix', 'community.version'])
+                        .where('did_to_community.did', '=', maybeDid)
+                        .where('did_to_community.version', '=', VERSION)
+                        .executeTakeFirst();
+                } else {
+                    return sorry;
+                }
+
+                if (!communityRes) {
+                    return sorry;
+                }
+
+                const existingCommunities: string[] = existingOverrides.c_exclude;
+                console.log(existingCommunities);
+                const excludedCommunities: string[] = [];
+                existingCommunities.forEach(community => {
+                    if (community !== communityRes.community) { excludedCommunities.push(community) }
+                });
+                console.log(excludedCommunities);
+                console.log("----------------- undo showless -----------------")
+
+                try {
+                    await this.db.updateTable('feed_overrides')
+                        .set('c_exclude', sql`${JSON.stringify(excludedCommunities)}`)
+                        .executeTakeFirst();
+                } catch (err) {
+                    return invalidCommand;
+                }
+
+                return await this.getOverrideStatusReply({ ...command, value: feedMap[split[0]].key });
+
+            }
+            await this.executeAndReply(setoption, command);
+        },
         "help": async (command: BotCommand) => {
             const help = async () => {
                 if (command.value && command.value === 'examples') {
                     return `🤖💡:
 
-${Bot.keyword} whereami
+                            ${Bot.keyword} whereami
 ${Bot.keyword} opt out
-${Bot.keyword} status mygalaxy+
-${Bot.keyword} showfeed mynebula+
-${Bot.keyword} showcommunity o2025039
-${Bot.keyword} find o::skygraph.art
-${Bot.keyword} followsoff mynebula+
-${Bot.keyword} repliesoff mygalaxy+
-${Bot.keyword} setoption mygalaxy+::follows_rate=10`
+${Bot.keyword} status mygalaxy +
+                        ${Bot.keyword} showless mynebula +:: [link to post / profile]
+${Bot.keyword} find o:: skygraph.art
+${Bot.keyword} followsoff mynebula +
+                        ${Bot.keyword} repliesoff mygalaxy +
+                        ${Bot.keyword} setoption mygalaxy +:: follows_rate = 10`
                 } else if (command.value && command.value === 'options') {
                     return `🤖💡:
 
-f: [ mygalaxy+, mynebula+ ]
-p: [ f, s, c, g, e, o ]
-u: [ user_hanle, post_url ]
+                            f: [mygalaxy +, mynebula + ]
+p: [f, s, c, g, e, o]
+u: [user_hanle, post_url]
 
 opt:
 
-home_communities: number,
-discover_communities: number,
-follows_rate: number,
-discover_rate: number,
-c_exclude: string[],
-c_include: string[]`;
+                            home_communities: number,
+                            discover_communities: number,
+                            follows_rate: number,
+                            discover_rate: number,
+                            c_exclude: string[],
+                            c_include: string[]`;
                 } else {
                     return `🤖💡:
 
-${Bot.keyword} whereami
+                            ${Bot.keyword} whereami
 ${Bot.keyword} opt out
-${Bot.keyword} status [f]
-${Bot.keyword} showfeed [f]
-${Bot.keyword} showcommunity [c]
-${Bot.keyword} find [p]::[u]
-${Bot.keyword} followsoff [f]
-${Bot.keyword} repliesoff [f]
-${Bot.keyword} setoption [f::opt=v]
-${Bot.keyword} help examples
+${Bot.keyword} status[f]
+${Bot.keyword} showless mynebula +:: [url]
+${Bot.keyword} find[p]:: [u]
+${Bot.keyword} followsoff[f]
+${Bot.keyword} repliesoff[f]
+${Bot.keyword} setoption[f:: opt = v]
+                            ${Bot.keyword} help examples
 ${Bot.keyword} help options`;
                 }
             }

@@ -439,6 +439,18 @@ migrations['011'] = {
   }
 };
 
+migrations['012'] = {
+  async up(db: Kysely<MysqlDialect>) {
+    await db.schema
+      .alterTable('feed_overrides')
+      .addColumn('exclude_c_by_did', 'json')
+      .execute();
+  },
+  async down(db: Kysely<MysqlDialect>) {
+    await db.schema.alterTable('feed_overrides').dropColumn('exclude_c_by_did').execute()
+  },
+};
+
 // adding people to communities on the fly
 // migrations['011'] = {
 //   async up(db: Kysely<MysqlDialect>) {

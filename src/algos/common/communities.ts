@@ -151,8 +151,12 @@ const getUserCommunities = async (db: Database, log: any[], userDid: string, con
     }
 
     //handle overrides
-    const includeCommunities = feedOverrideOptions?.c_include ? { communities: feedOverrideOptions?.c_include, prefix: feedOverrideOptions?.c_include[0].substring(0, 1) } : { communities: [], prefix: topLikedCommunityPrefix };
-    const excludeCommunities = feedOverrideOptions?.c_exclude ? { communities: feedOverrideOptions?.c_exclude, prefix: feedOverrideOptions?.c_exclude[0].substring(0, 1) } : { communities: [], prefix: topLikedCommunityPrefix };
+    const includeCommunities = feedOverrideOptions?.c_include && feedOverrideOptions?.c_include.length > 0
+        ? { communities: feedOverrideOptions?.c_include, prefix: feedOverrideOptions?.c_include[0].substring(0, 1) }
+        : { communities: [], prefix: topLikedCommunityPrefix };
+    const excludeCommunities = feedOverrideOptions?.c_exclude && feedOverrideOptions?.c_exclude.length > 0
+        ? { communities: feedOverrideOptions?.c_exclude, prefix: feedOverrideOptions?.c_exclude[0].substring(0, 1) }
+        : { communities: [], prefix: topLikedCommunityPrefix };
     //handle overrides
 
     // console.log({ userCommunity, expandCommunityPrefix, topLikedLimit, trustedFriendsLimit })

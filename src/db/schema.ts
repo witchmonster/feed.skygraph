@@ -44,6 +44,7 @@ export type FeedOverrides = {
   hide_follows?: boolean,
   c_exclude?: string[],
   c_include?: string[],
+  exclude_c_by_did?: string[],
   did_exclude?: string[],
   home_communities?: number,
   discover_communities?: number,
