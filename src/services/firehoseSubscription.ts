@@ -5,6 +5,7 @@ import {
 } from '../lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from '../util/subscription'
 import Bot from './bot'
+import { VERSION } from '../db/migrations'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -35,6 +36,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         return {
           uri: create.uri,
           cid: create.cid,
+          version: VERSION,
           author: create.author,
           replyParent: create.record?.reply?.parent.uri ?? null,
           replyRoot: create.record?.reply?.root.uri ?? null,
@@ -140,11 +142,13 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .selectFrom('did_to_community')
         .selectAll()
         .where('did_to_community.did', 'in', postsToCreate.map(post => post.author))
+        .where('version', '=', VERSION)
         .execute();
 
       const communityMap: {
         [did: string]: {
           did?: string,
+          version: number,
           f: string,
           s: string,
           c: string,
@@ -155,7 +159,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       } = communities.reduce((a, v) => ({ ...a, [v.did]: v }), {})
       if (communities?.length === postsToCreate.length) {
         const values = postsToCreate.map(post => {
-          let postWithCommunitiesreturn = { ...post, ...communityMap[post.author], ...{ version: 'v4' } };
+          let postWithCommunitiesreturn = { ...post, ...communityMap[post.author] };
           delete postWithCommunitiesreturn.did;
           return postWithCommunitiesreturn;
         });
@@ -221,54 +225,54 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     //   }
     // }
     if (likesToCreate.length > 0) {
-      const fromCommunities = await this.db
-        .selectFrom('did_to_community')
-        .select(['did_to_community.did', 'did_to_community.f', 'did_to_community.s', 'did_to_community.c', 'did_to_community.g', 'did_to_community.e', 'did_to_community.o'])
-        .where('did_to_community.did', 'in', likesToCreate.map(like => like.author))
-        .execute();
+      // const fromCommunities = await this.db
+      //   .selectFrom('did_to_community')
+      //   .select(['did_to_community.did', 'did_to_community.f', 'did_to_community.s', 'did_to_community.c', 'did_to_community.g', 'did_to_community.e', 'did_to_community.o'])
+      //   .where('did_to_community.did', 'in', likesToCreate.map(like => like.author))
+      //   .execute();
 
-      const toCommunities = await this.db
-        .selectFrom('did_to_community')
-        .select(['did_to_community.did', 'did_to_community.f', 'did_to_community.s', 'did_to_community.c', 'did_to_community.g', 'did_to_community.e', 'did_to_community.o'])
-        .where('did_to_community.did', 'in', likesToCreate.map(like => like.subject))
-        .execute();
+      // const toCommunities = await this.db
+      //   .selectFrom('did_to_community')
+      //   .select(['did_to_community.did', 'did_to_community.f', 'did_to_community.s', 'did_to_community.c', 'did_to_community.g', 'did_to_community.e', 'did_to_community.o'])
+      //   .where('did_to_community.did', 'in', likesToCreate.map(like => like.subject))
+      //   .execute();
 
-      const fromCommunityMap: {
-        [did: string]: {
-          did?: string,
-          from_f: string,
-          from_s: string,
-          from_c: string,
-          from_g: string,
-          from_e: string,
-          from_o: string,
-        }
-      } = fromCommunities.reduce((a, v) => ({ ...a, [v.did]: { did: v.did, from_f: v.f, from_s: v.s, from_c: v.c, from_g: v.g, from_e: v.e, from_o: v.o } }), {});
-      const toCommunityMap: {
-        [did: string]: {
-          did?: string,
-          to_f: string,
-          to_s: string,
-          to_c: string,
-          to_g: string,
-          to_e: string,
-          to_o: string,
-        }
-      } = toCommunities.reduce((a, v) => ({ ...a, [v.did]: { did: v.did, to_f: v.f, to_s: v.s, to_c: v.c, to_g: v.g, to_e: v.e, to_o: v.o } }), {});
+      // const fromCommunityMap: {
+      //   [did: string]: {
+      //     did?: string,
+      //     from_f: string,
+      //     from_s: string,
+      //     from_c: string,
+      //     from_g: string,
+      //     from_e: string,
+      //     from_o: string,
+      //   }
+      // } = fromCommunities.reduce((a, v) => ({ ...a, [v.did]: { did: v.did, from_f: v.f, from_s: v.s, from_c: v.c, from_g: v.g, from_e: v.e, from_o: v.o } }), {});
+      // const toCommunityMap: {
+      //   [did: string]: {
+      //     did?: string,
+      //     to_f: string,
+      //     to_s: string,
+      //     to_c: string,
+      //     to_g: string,
+      //     to_e: string,
+      //     to_o: string,
+      //   }
+      // } = toCommunities.reduce((a, v) => ({ ...a, [v.did]: { did: v.did, to_f: v.f, to_s: v.s, to_c: v.c, to_g: v.g, to_e: v.e, to_o: v.o } }), {});
 
-      const values = likesToCreate.map(like => {
-        const froms = fromCommunityMap[like.author] ?? {};
-        const tos = toCommunityMap[like.subject] ?? {}
-        let likesWithCommunitiesreturn = { ...like, ...froms, ...tos, ...{ version: 'v4' } };
-        delete likesWithCommunitiesreturn.did;
-        return likesWithCommunitiesreturn;
-      });
+      // const values = likesToCreate.map(like => {
+      //   const froms = fromCommunityMap[like.author] ?? {};
+      //   const tos = toCommunityMap[like.subject] ?? {}
+      //   let likesWithCommunitiesreturn = { ...like, ...froms, ...tos, ...{ version: 'v4' } };
+      //   delete likesWithCommunitiesreturn.did;
+      //   return likesWithCommunitiesreturn;
+      // });
+
       await this.db
         .insertInto('likescore')
-        .values(values)
+        .values(likesToCreate)
         .onDuplicateKeyUpdate((eb) => ({
-          score: eb('score', '+', 1),
-          version: 'v4'
+          score: eb('score', '+', 1)
         }))
         .execute();
 

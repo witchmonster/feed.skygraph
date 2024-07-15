@@ -18,6 +18,7 @@ import { InvalidRequestError } from "@atproto/xrpc-server";
 import dotenv from 'dotenv';
 import { MyCommunityPlusTemplateConfig } from "../algos/templates/mycommunityplus";
 import { measureMemory } from "vm";
+import { VERSION } from '../db/migrations'
 
 dotenv.config();
 
@@ -357,8 +358,9 @@ ${Bot.keyword} help options`;
                 if (maybeDid) {
                     communityRes = await this.db.selectFrom('did_to_community')
                         .innerJoin('community', 'community.community', didToPrefix)
-                        .select(['community.community', 'community.size', 'community.prefix'])
+                        .select(['community.community', 'community.size', 'community.prefix', 'community.version'])
                         .where('did_to_community.did', '=', maybeDid)
+                        .where('did_to_community.version', '=', VERSION)
                         .executeTakeFirst();
                 } else {
                     return sorry;
