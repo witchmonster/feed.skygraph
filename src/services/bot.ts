@@ -373,7 +373,7 @@ ${Bot.keyword} help examples`
                 const update = {};
                 update['c_exclude'] = existingOverrides?.c_exclude
                     ? JSON.stringify([...new Set([...existingOverrides?.c_exclude, communityRes.community])])
-                    : JSON.stringify([maybeDid]);
+                    : JSON.stringify([communityRes.community]);
 
 
                 console.log(values);
